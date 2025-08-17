@@ -1,0 +1,239 @@
+### Przykładowe requesty HTTP dla endpointów Feedback (Oceny)
+### Użyj tego pliku z rozszerzeniem REST Client w VS Code lub podobnym narzędziem
+
+@baseUrl = http://localhost:8000/api/v1
+@contentType = application/json
+
+### ===== FEEDBACK - ENDPOINTY ZAGNIEŻDŻONE POD INTERAKCJĄ =====
+
+### 1. Tworzenie pozytywnej oceny
+POST {{baseUrl}}/interactions/1/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": 1,
+  "feedback_type": "usefulness",
+  "comment": "Świetna sugestia! Dokładnie to pomogło przekonać klienta.",
+  "applied": 1
+}
+
+### 2. Tworzenie negatywnej oceny
+POST {{baseUrl}}/interactions/1/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": -1,
+  "feedback_type": "accuracy",
+  "comment": "Sugestia była nieadekwatna do sytuacji. Klient źle zareagował.",
+  "applied": 0
+}
+
+### 3. Minimalna ocena (tylko rating)
+POST {{baseUrl}}/interactions/2/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": 1
+}
+
+### 4. Ocena z typem relevance
+POST {{baseUrl}}/interactions/2/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": -1,
+  "feedback_type": "relevance",
+  "comment": "Sugestie były ogólnikowe i nie pasowały do konkretnego klienta."
+}
+
+### 5. Pobieranie ocen dla interakcji
+GET {{baseUrl}}/interactions/1/feedback/
+Accept: {{contentType}}
+
+### ===== FEEDBACK - ENDPOINTY BEZPOŚREDNIE =====
+
+### 6. Aktualizacja feedbacku
+PUT {{baseUrl}}/feedback/1
+Content-Type: {{contentType}}
+
+{
+  "rating": 1,
+  "comment": "Po przemyśleniu, sugestia była jednak pomocna.",
+  "applied": 1
+}
+
+### 7. Zmiana tylko komentarza
+PUT {{baseUrl}}/feedback/1
+Content-Type: {{contentType}}
+
+{
+  "comment": "Dodatkowa uwaga: warto byłoby uwzględnić kontekst branżowy."
+}
+
+### 8. Oznaczenie zastosowania sugestii
+PUT {{baseUrl}}/feedback/1
+Content-Type: {{contentType}}
+
+{
+  "applied": 1
+}
+
+### 9. Usunięcie feedbacku
+DELETE {{baseUrl}}/feedback/1
+
+### ===== ENDPOINTY ANALITYCZNE =====
+
+### 10. Statystyki globalne feedbacku
+GET {{baseUrl}}/feedback/statistics?entity_type=global
+Accept: {{contentType}}
+
+### 11. Statystyki feedbacku dla sesji
+GET {{baseUrl}}/feedback/statistics?entity_type=session&entity_id=1
+Accept: {{contentType}}
+
+### 12. Statystyki feedbacku dla klienta
+GET {{baseUrl}}/feedback/statistics?entity_type=client&entity_id=1
+Accept: {{contentType}}
+
+### 13. Statystyki z ostatnich 7 dni
+GET {{baseUrl}}/feedback/statistics?entity_type=global&time_period=7
+Accept: {{contentType}}
+
+### 14. Problematyczne interakcje
+GET {{baseUrl}}/feedback/problematic-interactions?threshold=-2&limit=5
+Accept: {{contentType}}
+
+### 15. Sugestie poprawy globalne
+GET {{baseUrl}}/feedback/improvement-suggestions
+Accept: {{contentType}}
+
+### 16. Sugestie poprawy dla sesji
+GET {{baseUrl}}/feedback/improvement-suggestions?session_id=1
+Accept: {{contentType}}
+
+### 17. Metryki wydajności AI (30 dni)
+GET {{baseUrl}}/feedback/ai-performance?time_period=30
+Accept: {{contentType}}
+
+### 18. Metryki wydajności AI (7 dni)
+GET {{baseUrl}}/feedback/ai-performance?time_period=7
+Accept: {{contentType}}
+
+### ===== SCENARIUSZE BIZNESOWE =====
+
+### Scenariusz 1: Pozytywny feedback flow
+
+### Krok 1: Interakcja dostaje dobrą sugestię
+POST {{baseUrl}}/interactions/3/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": 1,
+  "feedback_type": "usefulness",
+  "comment": "Pytania kwalifikujące były trafne",
+  "applied": 1
+}
+
+### Scenariusz 2: Negatywny trend
+
+### Krok 1: Pierwsza negatywna ocena
+POST {{baseUrl}}/interactions/4/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": -1,
+  "feedback_type": "accuracy",
+  "comment": "Źle zidentyfikowany archetyp klienta"
+}
+
+### Krok 2: Druga negatywna ocena
+POST {{baseUrl}}/interactions/5/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": -1,
+  "feedback_type": "relevance",
+  "comment": "Sugestie nie pasowały do kontekstu"
+}
+
+### Krok 3: Trzecia negatywna ocena (trigger dla analizy trendu)
+POST {{baseUrl}}/interactions/6/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": -1,
+  "feedback_type": "usefulness",
+  "comment": "Sugestie były zbyt ogólne"
+}
+
+### Scenariusz 3: Mieszany feedback
+
+### Krok 1: Pozytywna ocena
+POST {{baseUrl}}/interactions/7/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": 1,
+  "comment": "Dobra analiza sentymentu"
+}
+
+### Krok 2: Negatywna ocena
+POST {{baseUrl}}/interactions/8/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": -1,
+  "comment": "Słabe sugestie akcji"
+}
+
+### ===== KOMPLETNY TEST FLOW =====
+
+### 1. Utwórz klienta
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Test Feedback Client",
+  "contact_info": "feedback@test.com",
+  "archetype": "Pragmatyczny Analityk"
+}
+
+### 2. Utwórz sesję (użyj ID klienta)
+POST {{baseUrl}}/clients/4/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "initial"
+}
+
+### 3. Utwórz interakcję (użyj ID sesji)
+POST {{baseUrl}}/sessions/4/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient pyta o różnice między Model 3 a Model Y",
+  "interaction_type": "question"
+}
+
+### 4. Dodaj pozytywny feedback (użyj ID interakcji)
+POST {{baseUrl}}/interactions/10/feedback/
+Content-Type: {{contentType}}
+
+{
+  "rating": 1,
+  "feedback_type": "usefulness",
+  "comment": "Porównanie było bardzo pomocne",
+  "applied": 1
+}
+
+### 5. Sprawdź statystyki sesji
+GET {{baseUrl}}/feedback/statistics?entity_type=session&entity_id=4
+Accept: {{contentType}}
+
+### 6. Sprawdź metryki AI
+GET {{baseUrl}}/feedback/ai-performance?time_period=1
+Accept: {{contentType}}
+
+### 7. Pobierz sugestie poprawy
+GET {{baseUrl}}/feedback/improvement-suggestions?session_id=4
+Accept: {{contentType}}

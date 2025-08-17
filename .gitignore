@@ -1,0 +1,14 @@
+# Pliki środowiskowe
+.env
+*.env.local
+
+# Zależności Node.js
+/frontend/node_modules
+
+# Zależności i pliki tymczasowe Pythona
+/backend/.venv
+/backend/__pycache__/
+/backend/*.pyc
+
+# Pliki systemowe
+.DS_Store

@@ -1,0 +1,187 @@
+### Przykładowe requesty HTTP dla endpointów Sesji
+### Użyj tego pliku z rozszerzeniem REST Client w VS Code lub podobnym narzędziem
+
+@baseUrl = http://localhost:8000/api/v1
+@contentType = application/json
+
+### ===== SESJE - ENDPOINTY ZAGNIEŻDŻONE POD KLIENTEM =====
+
+### 1. Rozpoczęcie nowej sesji dla klienta
+POST {{baseUrl}}/clients/1/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "initial",
+  "key_facts": {
+    "preferred_model": "Model Y",
+    "budget_range": "250-300k PLN",
+    "timeline": "Q1 2025"
+  }
+}
+
+### 2. Rozpoczęcie sesji bez dodatkowych danych
+POST {{baseUrl}}/clients/1/sessions/
+Content-Type: {{contentType}}
+
+### 3. Pobieranie listy sesji klienta
+GET {{baseUrl}}/clients/1/sessions/?page=1&page_size=10
+Accept: {{contentType}}
+
+### 4. Pobieranie tylko aktywnych sesji klienta
+GET {{baseUrl}}/clients/1/sessions/?only_active=true
+Accept: {{contentType}}
+
+### 5. Pobieranie sesji klienta z filtrowaniem po typie
+GET {{baseUrl}}/clients/1/sessions/?session_type=initial&order_by=start_time&order_desc=true
+Accept: {{contentType}}
+
+### ===== SESJE - ENDPOINTY BEZPOŚREDNIE =====
+
+### 6. Pobieranie szczegółów sesji
+GET {{baseUrl}}/sessions/1
+Accept: {{contentType}}
+
+### 7. Pobieranie sesji z danymi klienta
+GET {{baseUrl}}/sessions/1?include_client=true
+Accept: {{contentType}}
+
+### 8. Pobieranie sesji z interakcjami
+GET {{baseUrl}}/sessions/1?include_interactions=true
+Accept: {{contentType}}
+
+### 9. Aktualizacja sesji
+PUT {{baseUrl}}/sessions/1
+Content-Type: {{contentType}}
+
+{
+  "session_type": "follow-up",
+  "sentiment_score": 8,
+  "potential_score": 7,
+  "key_facts": {
+    "preferred_model": "Model Y",
+    "budget_range": "250-300k PLN",
+    "timeline": "Q1 2025",
+    "concerns": ["zasięg", "serwis"],
+    "decision_makers": ["dyrektor", "CFO"]
+  }
+}
+
+### 10. Zakończenie sesji
+PUT {{baseUrl}}/sessions/1/end
+Content-Type: {{contentType}}
+
+{
+  "summary": "Klient zainteresowany Model Y, główne obawy dotyczą zasięgu i dostępności serwisu. Planuje decyzję w Q1 2025. Wymaga akceptacji CFO.",
+  "outcome": "interested",
+  "sentiment_score": 8,
+  "potential_score": 7
+}
+
+### 11. Usunięcie sesji
+DELETE {{baseUrl}}/sessions/1
+
+### ===== DODATKOWE ENDPOINTY =====
+
+### 12. Statystyki sesji
+GET {{baseUrl}}/sessions/1/statistics
+Accept: {{contentType}}
+
+### 13. Ostatnie sesje
+GET {{baseUrl}}/sessions/recent?limit=5
+Accept: {{contentType}}
+
+### 14. Tylko aktywne sesje
+GET {{baseUrl}}/sessions/recent?limit=10&only_active=true
+Accept: {{contentType}}
+
+### 15. Zaangażowanie klienta
+GET {{baseUrl}}/clients/1/engagement
+Accept: {{contentType}}
+
+### ===== PRZYKŁADY DLA TESTÓW FLOW =====
+
+### Test Flow 1: Pełny cykl sesji
+
+### Krok 1: Utwórz klienta
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Test Klient Sesja",
+  "contact_info": "test@example.com",
+  "company": "Test Company",
+  "archetype": "Pragmatyczny Analityk"
+}
+
+###
+### Krok 2: Rozpocznij sesję (użyj ID zwrócone z kroku 1)
+POST {{baseUrl}}/clients/2/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "initial",
+  "key_facts": {
+    "source": "website",
+    "interest_level": "high"
+  }
+}
+
+###
+### Krok 3: Aktualizuj sesję w trakcie
+PUT {{baseUrl}}/sessions/2
+Content-Type: {{contentType}}
+
+{
+  "sentiment_score": 6,
+  "risk_indicators": {
+    "budget_concerns": true,
+    "competitor_consideration": "BMW iX"
+  }
+}
+
+###
+### Krok 4: Zakończ sesję
+PUT {{baseUrl}}/sessions/2/end
+Content-Type: {{contentType}}
+
+{
+  "summary": "Klient rozważa zakup, porównuje z BMW iX. Obawy budżetowe.",
+  "outcome": "needs_time",
+  "sentiment_score": 6,
+  "potential_score": 5
+}
+
+### Test Flow 2: Multiple sesje dla jednego klienta
+
+### Sesja 1 - Initial
+POST {{baseUrl}}/clients/1/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "initial"
+}
+
+###
+### Sesja 2 - Follow-up
+POST {{baseUrl}}/clients/1/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "follow-up",
+  "key_facts": {
+    "previous_concerns_addressed": true
+  }
+}
+
+###
+### Sesja 3 - Negotiation
+POST {{baseUrl}}/clients/1/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "negotiation",
+  "key_facts": {
+    "ready_to_buy": true,
+    "negotiating": "price, delivery"
+  }
+}

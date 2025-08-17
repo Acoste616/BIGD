@@ -1,0 +1,3 @@
+"""
+Moduł routerów - endpointy API
+"""

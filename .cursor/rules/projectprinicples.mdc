@@ -1,0 +1,23 @@
+---
+description:
+## Cel Projektu
+Celem tego projektu jest
+
+## Stos Technologiczny
+- **Frontend:**
+- **Backend:**
+- **Baza Danych:**
+- **Framework do Testowania:** [np. Vitest, Jest]
+
+## Zasady Architektoniczne
+1.  **Separacja Odpowiedzialności:** Ściśle oddzielaj logikę frontendu od logiki backendu. Frontend odpowiada za interfejs użytkownika, a backend za logikę biznesową i operacje na danych.
+2.  **Struktura Modułowa:** Pisz kod w małych, reużywalnych modułach/komponentach. Unikaj tworzenia dużych, monolitycznych plików.
+3.  **Zasada DRY (Don't Repeat Yourself):** Jeśli ten sam fragment kodu jest używany w więcej niż jednym miejscu, wyodrębnij go do osobnej funkcji lub komponentu.
+4.  **Bezpieczeństwo Przede Wszystkim:** Wszystkie dane wejściowe od użytkownika muszą być walidowane i oczyszczane po stronie serwera. Nigdy nie ufaj danym przychodzącym z klienta.
+type: Always
+
+# Główne Zasady Projektu
+
+globs:
+alwaysApply: true
+---

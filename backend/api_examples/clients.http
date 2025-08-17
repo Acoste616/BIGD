@@ -1,0 +1,95 @@
+### Przykładowe requesty HTTP dla endpointów Klientów
+### Użyj tego pliku z rozszerzeniem REST Client w VS Code lub podobnym narzędziem
+
+@baseUrl = http://localhost:8000/api/v1
+@contentType = application/json
+
+### 1. Tworzenie nowego klienta
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Jan Kowalski",
+  "contact_info": "jan.kowalski@example.com, +48 123 456 789",
+  "company": "Tesla Motors Poland",
+  "position": "Dyrektor Zakupów",
+  "notes": "Zainteresowany Model Y, preferuje kontakt mailowy",
+  "archetype": "Pragmatyczny Analityk",
+  "tags": ["VIP", "fleet", "model-y"]
+}
+
+### 2. Pobieranie listy klientów z paginacją
+GET {{baseUrl}}/clients/?page=1&page_size=10
+Accept: {{contentType}}
+
+### 3. Pobieranie listy z filtrowaniem
+GET {{baseUrl}}/clients/?search=Tesla&archetype=Pragmatyczny Analityk&order_by=created_at&order_desc=true
+Accept: {{contentType}}
+
+### 4. Pobieranie konkretnego klienta
+GET {{baseUrl}}/clients/1
+Accept: {{contentType}}
+
+### 5. Pobieranie klienta z sesjami
+GET {{baseUrl}}/clients/1?include_sessions=true
+Accept: {{contentType}}
+
+### 6. Aktualizacja klienta
+PUT {{baseUrl}}/clients/1
+Content-Type: {{contentType}}
+
+{
+  "position": "CEO",
+  "archetype": "Zdobywca Statusu",
+  "tags": ["VIP", "fleet", "model-s", "high-priority"]
+}
+
+### 7. Usunięcie klienta
+DELETE {{baseUrl}}/clients/1
+
+### 8. Statystyki klienta
+GET {{baseUrl}}/clients/1/statistics
+Accept: {{contentType}}
+
+### 9. Szybkie wyszukiwanie
+GET {{baseUrl}}/clients/search/quick?q=Kowal&limit=5
+Accept: {{contentType}}
+
+### 10. Przykład tworzenia wielu klientów do testów
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Anna Nowak",
+  "contact_info": "anna.nowak@firma.pl",
+  "company": "EcoDrive Sp. z o.o.",
+  "position": "Kierownik Floty",
+  "archetype": "Eko-Entuzjasta",
+  "tags": ["fleet", "eco", "model-3"]
+}
+
+###
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Piotr Wiśniewski",
+  "contact_info": "piotr.w@startup.io",
+  "company": "InnoTech Startup",
+  "position": "Founder",
+  "archetype": "Pionier Technologii",
+  "tags": ["startup", "tech", "autopilot"]
+}
+
+###
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Maria Zielińska",
+  "contact_info": "mzielinska@example.com",
+  "company": "Family Business Polska",
+  "position": "Właścicielka",
+  "archetype": "Strażnik Rodziny",
+  "tags": ["family", "safety", "model-x"]
+}

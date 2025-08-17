@@ -1,0 +1,207 @@
+### Przykładowe requesty HTTP dla endpointów Interakcji
+### Użyj tego pliku z rozszerzeniem REST Client w VS Code lub podobnym narzędziem
+
+@baseUrl = http://localhost:8000/api/v1
+@contentType = application/json
+
+### ===== INTERAKCJE - ENDPOINTY ZAGNIEŻDŻONE POD SESJĄ =====
+
+### 1. 🔥 NAJWAŻNIEJSZY ENDPOINT - Tworzenie nowej interakcji
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient pyta o Model Y - jaki jest zasięg na jednym ładowaniu? Wspomina, że jeździ często na trasie Warszawa-Kraków.",
+  "interaction_type": "question"
+}
+
+### 2. Interakcja typu observation
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient wydaje się zainteresowany, ale wspomniał o obawach dotyczących dostępności stacji ładowania. Porównuje z BMW iX.",
+  "interaction_type": "observation"
+}
+
+### 3. Interakcja typu objection
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient mówi, że cena jest za wysoka w porównaniu do tradycyjnych aut premium. Pyta czy są jakieś promocje lub leasing.",
+  "interaction_type": "objection"
+}
+
+### 4. Pobieranie listy interakcji sesji
+GET {{baseUrl}}/sessions/1/interactions/?page=1&page_size=10
+Accept: {{contentType}}
+
+### 5. Pobieranie interakcji z sortowaniem
+GET {{baseUrl}}/sessions/1/interactions/?order_by=timestamp&order_desc=true
+Accept: {{contentType}}
+
+### ===== INTERAKCJE - ENDPOINTY BEZPOŚREDNIE =====
+
+### 6. Pobieranie szczegółów interakcji
+GET {{baseUrl}}/interactions/1
+Accept: {{contentType}}
+
+### 7. Pobieranie interakcji z feedbackiem
+GET {{baseUrl}}/interactions/1?include_feedback=true
+Accept: {{contentType}}
+
+### 8. Aktualizacja interakcji
+PUT {{baseUrl}}/interactions/1
+Content-Type: {{contentType}}
+
+{
+  "interaction_type": "objection",
+  "confidence_score": 90
+}
+
+### 9. Usunięcie interakcji
+DELETE {{baseUrl}}/interactions/1
+
+### ===== DODATKOWE ENDPOINTY =====
+
+### 10. Statystyki interakcji
+GET {{baseUrl}}/interactions/1/statistics
+Accept: {{contentType}}
+
+### 11. Analiza przebiegu konwersacji
+GET {{baseUrl}}/sessions/1/interactions/analysis
+Accept: {{contentType}}
+
+### 12. Ostatnie interakcje
+GET {{baseUrl}}/interactions/recent?limit=10
+Accept: {{contentType}}
+
+### 13. Ostatnie interakcje dla konkretnej sesji
+GET {{baseUrl}}/interactions/recent?limit=5&session_id=1
+Accept: {{contentType}}
+
+### ===== PRZYKŁADY SCENARIUSZY BIZNESOWYCH =====
+
+### Scenariusz 1: Pierwsze zainteresowanie
+
+### Krok 1: Pierwszy kontakt
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient wszedł do salonu, ogląda Model 3. Mówi że szuka auta elektrycznego dla rodziny.",
+  "interaction_type": "observation"
+}
+
+### Scenariusz 2: Pytania techniczne
+
+### Krok 1: Pytanie o zasięg
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Ile realnie przejadę na jednym ładowaniu zimą? Mam garaż z gniazdkiem.",
+  "interaction_type": "question"
+}
+
+### Krok 2: Pytanie o ładowanie
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Jak długo trwa ładowanie? Czy mogę ładować z normalnego gniazdka?",
+  "interaction_type": "question"
+}
+
+### Scenariusz 3: Obiekcje cenowe
+
+### Krok 1: Pierwsza obiekcja
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "To dużo drożej niż Audi Q5 które rozważam. Co usprawiedliwia tę cenę?",
+  "interaction_type": "objection"
+}
+
+### Krok 2: Negocjacje
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Czy jest możliwość negocjacji ceny? Rozważam zakup dwóch aut dla firmy.",
+  "interaction_type": "question"
+}
+
+### Scenariusz 4: Decyzja zakupowa
+
+### Krok 1: Gotowość do zakupu
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "OK, jestem przekonany. Chcę Model Y Long Range w kolorze Pearl White. Kiedy mogę odebrać?",
+  "interaction_type": "observation"
+}
+
+### Krok 2: Szczegóły transakcji
+POST {{baseUrl}}/sessions/1/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Preferuję leasing operacyjny na 3 lata. Czy mogę dostać wycenę?",
+  "interaction_type": "question"
+}
+
+### ===== TEST FLOW KOMPLETNEJ SESJI =====
+
+### Utwórz klienta
+POST {{baseUrl}}/clients/
+Content-Type: {{contentType}}
+
+{
+  "name": "Jan Testowy",
+  "contact_info": "jan.test@example.com",
+  "company": "Test Corp",
+  "archetype": "Pragmatyczny Analityk"
+}
+
+### Rozpocznij sesję (użyj ID klienta z poprzedniego kroku)
+POST {{baseUrl}}/clients/3/sessions/
+Content-Type: {{contentType}}
+
+{
+  "session_type": "initial"
+}
+
+### Pierwsza interakcja (użyj ID sesji z poprzedniego kroku)
+POST {{baseUrl}}/sessions/3/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient zainteresowany Model Y, pyta o dostępność i cenę.",
+  "interaction_type": "observation"
+}
+
+### Druga interakcja
+POST {{baseUrl}}/sessions/3/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Czy auto ma system autopilota? Jak to działa?",
+  "interaction_type": "question"
+}
+
+### Trzecia interakcja
+POST {{baseUrl}}/sessions/3/interactions/
+Content-Type: {{contentType}}
+
+{
+  "user_input": "Klient mówi że cena jest wysoka ale jest pod wrażeniem technologii.",
+  "interaction_type": "observation"
+}
+
+### Analiza konwersacji
+GET {{baseUrl}}/sessions/3/interactions/analysis
+Accept: {{contentType}}

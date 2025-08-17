@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIGDecoder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #e5e7eb;
+        }
+        .card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .card.selected {
+            border-color: #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+            background-color: #2c3a4b;
+        }
+        .tab {
+             transition: all 0.2s ease-in-out;
+        }
+        .tab.active {
+            border-bottom-color: #ef4444;
+            color: #ef4444;
+        }
+        .btn-primary {
+            background-color: #ef4444;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #dc2626;
+        }
+        .btn-secondary {
+            background-color: #4b5563;
+            transition: background-color 0.2s;
+        }
+        .btn-secondary:hover {
+            background-color: #6b7280;
+        }
+        .custom-checkbox:checked, .custom-radio:checked {
+            background-color: #ef4444;
+            border-color: #ef4444;
+        }
+        .custom-checkbox:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+        .custom-radio:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+        }
+        select {
+            background-color: #374151;
+            border-color: #4b5563;
+        }
+        #tabs::-webkit-scrollbar { height: 4px; }
+        #tabs::-webkit-scrollbar-track { background: #1f2937; }
+        #tabs::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
+        #tabs::-webkit-scrollbar-thumb:hover { background: #ef4444; }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="relative text-center mb-8">
+            <h1 id="main-title" class="text-3xl sm:text-4xl font-bold text-white flex items-center justify-center gap-3">
+                <svg class="w-10 h-10 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.624l-.219.872-.219-.872a1.875 1.875 0 00-1.152-1.152l-.872-.219.872-.219a1.875 1.875 0 001.152-1.152l.219-.872.219.872a1.875 1.875 0 001.152 1.152l.872.219-.872.219a1.875 1.875 0 00-1.152 1.152z" />
+                </svg>
+                BIGDecoder <span class="text-xl text-red-400">v13.1</span>
+            </h1>
+            <p id="subtitle" class="text-gray-400 mt-2">Profesjonalny Silnik Strategii Sprzedażowych</p>
+            <button id="lang-toggle" class="absolute top-0 right-0 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+                EN
+            </button>
+        </header>
+
+        <!-- Input Section -->
+        <div id="inputSection" class="space-y-8">
+            <div>
+                <h2 id="header-demographics" class="text-2xl font-semibold mb-4 border-l-4 border-red-500 pl-3">1. Dane Demograficzne Klienta</h2>
+                <div id="demographicsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+            </div>
+            <div>
+                <h2 id="header-context" class="text-2xl font-semibold mb-4 border-l-4 border-red-500 pl-3">2. Kontekst Sytuacyjny</h2>
+                <div id="contextContainer" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            </div>
+            <div>
+                <h2 id="header-triggers" class="text-2xl font-semibold mb-4 border-l-4 border-red-500 pl-3">3. Triggery z rozmowy</h2>
+                <div id="triggersContainer" class="space-y-6"></div>
+            </div>
+            <div class="text-center pt-8">
+                <button id="analyzeButton" class="btn-primary text-white font-bold py-3 px-12 rounded-lg text-lg shadow-lg shadow-red-500/20">
+                    Analizuj Klienta
+                </button>
+            </div>
+        </div>
+
+        <!-- Analysis Section -->
+        <div id="analysisSection" class="hidden mt-12">
+             <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+                 <h2 id="results-title" class="text-3xl font-bold text-white text-center sm:text-left">Wyniki Analizy</h2>
+                 <button id="resetButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg w-full sm:w-auto">Zacznij od nowa</button>
+             </div>
+
+            <div class="card rounded-lg p-2">
+                <div class="border-b border-gray-700">
+                    <nav id="tabs" class="-mb-px flex space-x-2 sm:space-x-6 overflow-x-auto" aria-label="Tabs"></nav>
+                </div>
+                <div id="tabContent" class="pt-6 pb-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deep Dive Modal -->
+    <div id="deepDiveModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-lg w-full border border-gray-700">
+            <h3 id="deepDiveTitle" class="text-xl font-bold text-white mb-4">Doprecyzuj Analizę</h3>
+            <div id="deepDiveContent" class="space-y-3 mb-6"></div>
+            <div class="flex justify-end gap-4">
+                <button id="closeDeepDiveButton" class="btn-secondary text-white font-bold py-2 px-6 rounded-lg">Anuluj</button>
+                <button id="applyDeepDiveButton" class="btn-primary text-white font-bold py-2 px-6 rounded-lg">Zastosuj</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        let currentLanguage = 'pl';
+        let discChart = null; // Global chart instance
+        let selectedDeepDive = {}; // To store deep dive choices
+
+        // --- UI TRANSLATIONS DATABASE ---
+        const translations = {
+            pl: {
+                subtitle: "Profesjonalny Silnik Strategii Sprzedażowych",
+                header_demographics: "1. Dane Demograficzne Klienta",
+                header_context: "2. Kontekst Sytuacyjny",
+                header_triggers: "3. Triggery z rozmowy",
+                analyze_button: "Analizuj Klienta",
+                results_title: "Wyniki Analizy",
+                reset_button: "Zacznij od nowa",
+                disc_title: "Główny Typ DISC",
+                archetype_title: "Wykryty Archetyp",
+                confidence_title: "Pewność Analizy",
+                model_title: "Sugerowany Model Tesli",
+                disc_radar_title: "Profil Osobowości DISC",
+                modal_error_text: "Wybierz przynajmniej jeden trigger lub uzupełnij dane demograficzne.",
+                modal_ok_button: "OK",
+                quick_response: "Szybka odpowiedź",
+                deep_dive_button: "Doprecyzuj Analizę ➔",
+                deep_dive_title: "Doprecyzuj Analizę",
+                deep_dive_apply: "Zastosuj",
+                deep_dive_cancel: "Anuluj",
+                unlocked_playbook_title: "Odblokowane Porady (Analiza Głębinowa)",
+                communication_title: "🗣️ Język i Komunikacja",
+                keywords_title: "Słowa-Klucze",
+                phrases_title: "Złote Frazy",
+                talking_points_title: "Kluczowe Punkty do Poruszenia",
+                fun_drive_title: "Wskaźnik Intencji Zakupowej",
+                ovn_potential_title: "Potencjał Jazdy Weekendowej (OVN)",
+                tabs: {
+                    summary: "📊 Podsumowanie",
+                    communication: "🗣️ Komunikacja",
+                    playbook: "📝 Playbook",
+                    objections: "🛡️ Zbijanie Obiekcji",
+                    competition: "🆚 Konkurencja",
+                    techniques: "💡 Techniki"
+                }
+            },
+            en: {
+                subtitle: "Professional Sales Strategy Engine",
+                header_demographics: "1. Customer Demographics",
+                header_context: "2. Situational Context",
+                header_triggers: "3. Conversation Triggers",
+                analyze_button: "Analyze Customer",
+                results_title: "Analysis Results",
+                reset_button: "Start Over",
+                disc_title: "Main DISC Type",
+                archetype_title: "Detected Archetype",
+                confidence_title: "Analysis Confidence",
+                model_title: "Suggested Tesla Model",
+                disc_radar_title: "DISC Personality Profile",
+                modal_error_text: "Please select at least one trigger or fill in demographic data.",
+                modal_ok_button: "OK",
+                quick_response: "Quick response",
+                deep_dive_button: "Refine Analysis ➔",
+                deep_dive_title: "Refine Analysis",
+                deep_dive_apply: "Apply",
+                deep_dive_cancel: "Cancel",
+                unlocked_playbook_title: "Unlocked Insights (Deep Dive Analysis)",
+                communication_title: "🗣️ Language & Communication",
+                keywords_title: "Keywords",
+                phrases_title: "Golden Phrases",
+                talking_points_title: "Key Talking Points",
+                fun_drive_title: "Purchase Intent Score",
+                ovn_potential_title: "Overnight Test Drive Potential",
+                tabs: {
+                    summary: "📊 Summary",
+                    communication: "🗣️ Communication",
+                    playbook: "📝 Playbook",
+                    objections: "🛡️ Objection Handling",
+                    competition: "🆚 Competition",
+                    techniques: "💡 Techniques"
+                }
+            }
+        };
+
+        // --- NEW DATA SOURCES (VALIDATED 31.07.2025) ---
+
+        // Market Intelligence Database
+        const market_data = {
+          "version": "2.0", "last_updated": "2025-07-31",
+          "government_subsidies": {
+            "nasz_eauto_program": {
+              "remaining_budget": 210000000, 
+              "estimated_depletion_date": "2025-10-20",
+              "subsidy_amounts": { "individual_new_ev": 18750, "business_lease_new_ev": 30000 }
+            }
+          },
+          "competitor_analysis": {
+            "bmw_ix3": { "name": "BMW iX3", "base_price": 297000, "key_advantages": ["Premium brand heritage", "Established dealer network"], "key_disadvantages": ["Lower range", "Slower charging", "Less advanced software"] },
+            "audi_q4_etron": { "name": "Audi Q4 e-tron", "base_price": 278700, "key_advantages": ["Luxury interior", "Build quality"], "key_disadvantages": ["Higher maintenance costs", "Complex infotainment"] }
+          }
+        };
+
+        // Persuasion Techniques Database
+        const persuasion_data = {
+          "framing": { name: {pl: "Framing (Ramkowanie)", en: "Framing"}, description: {pl: "Podkreślanie utraconych korzyści przy pozostaniu przy aucie spalinowym.", en: "Highlighting the lost benefits of sticking with a combustion engine car."} },
+          "social_proof": { name: {pl: "Dowód Społeczny", en: "Social Proof"}, description: {pl: "Pokazywanie, że inni, podobni ludzie już dokonali wyboru i są zadowoleni.", en: "Showing that other, similar people have already made the choice and are satisfied."} },
+          "authority": { name: {pl: "Zasada Autorytetu", en: "Authority Principle"}, description: {pl: "Powoływanie się na opinie ekspertów, wyniki testów, wizję lidera.", en: "Citing expert opinions, test results, and a leader's vision."} },
+          "scarcity_ethical": { name: {pl: "Zasada Niedoboru (Etyczna)", en: "Scarcity Principle (Ethical)"}, description: {pl: "Podkreślanie rzeczywiście ograniczonej dostępności lub limitowanego czasu oferty.", en: "Emphasizing genuinely limited availability or a time-limited offer."} },
+          "benefits_language": { name: {pl: "Język Korzyści", en: "Benefits Language"}, description: {pl: "Mówienie o cechach produktu w kontekście konkretnych korzyści dla danego klienta.", en: "Talking about product features in the context of specific benefits for the customer."} }
+        };
+        
+        // Objections Database
+        const objections_data = {
+          "OBJ_PRICE_HIGH": {
+            rebuttals: [
+              { level: 1, technique: "framing", script: {pl: "Rozumiem, że cena początkowa może wydawać się wysoka. Jednak proponuję spojrzeć na to jako na inwestycję. Dzięki oszczędnościom na paliwie rzędu 800 zł miesięcznie i serwisie, ten samochód w perspektywie 5 lat może okazać się tańszy niż jego spalinowy odpowiednik.", en: "I understand the initial price may seem high. However, I suggest looking at it as an investment. With fuel savings of around 800 PLN per month and service, this car can be cheaper than its combustion counterpart over 5 years."} },
+              { level: 2, technique: "scarcity_ethical", script: {pl: "Warto też pamiętać, że program dopłat ma ograniczony budżet, z którego zostało już tylko [REMAINING_BUDGET] zł, i może zakończyć się wcześniej, około [DEPLETION_DATE]. To realna oszczędność [SUBSIDY_AMOUNT] zł, która może zniknąć.", en: "It's also worth remembering that the subsidy program has a limited budget, with only [REMAINING_BUDGET] PLN left, and it might end sooner, around [DEPLETION_DATE]. This is a real saving of [SUBSIDY_AMOUNT] PLN that could disappear."} }
+            ]
+          },
+          "OBJ_RANGE_WINTER": {
+            rebuttals: [
+              { level: 1, technique: "authority", script: {pl: "To bardzo częsta obawa. Niezależne testy pokazują, że realny zasięg zimą to wciąż ponad 350 km, a 95% codziennych podróży Polaków to dystanse poniżej 50 km. Czy Pana codzienne trasy są dłuższe?", en: "That's a very common concern. Independent tests show that the real winter range is still over 350 km, and 95% of daily trips in Poland are under 50 km. Are your daily routes longer?"} },
+              { level: 2, technique: "benefits_language", script: {pl: "Dodatkowo, ten model jest wyposażony w pompę ciepła, która dla Pana oznacza minimalne straty energii zimą i maksymalny komfort bez kompromisów.", en: "Additionally, this model is equipped with a heat pump, which for you means minimal energy loss in winter and maximum comfort without compromise."} }
+            ]
+          }
+        };
+
+        // DEEP DIVE ANALYSIS DATABASE
+        const deep_dive_data = {
+            "performance_interest": [
+                { id: "dd_perf_1", text: {pl: "Czy przyspieszenie 0-100 km/h to dla Pana kluczowy parametr?", en: "Is 0-100 km/h acceleration a key parameter for you?"}, modifiers: { D: 0.10, I: 0.05 }, playbook_unlock: "acceleration_focus_argument" },
+                { id: "dd_perf_2", text: {pl: "Czy planuje Pan jeździć autem na torze wyścigowym?", en: "Do you plan to drive the car on a racetrack?"}, modifiers: { D: 0.15, S: -0.10, I: 0.05 }, playbook_unlock: "track_mode_argument" }
+            ],
+            "range_anxiety": [
+                { id: "dd_range_1", text: {pl: "Czy obawa dotyczy codziennych dojazdów czy długich wakacyjnych tras?", en: "Does the concern relate to daily commutes or long holiday trips?"}, modifiers: { S: 0.10, C: 0.05 }, playbook_unlock: "trip_planner_argument" },
+                { id: "dd_range_2", text: {pl: "Czy ma Pan możliwość ładowania w domu lub w pracy?", en: "Do you have the ability to charge at home or at work?"}, modifiers: { S: -0.10 }, playbook_unlock: "home_charging_argument" }
+            ],
+            "price_concern": [
+                { id: "dd_price_1", text: {pl: "Czy główną barierą jest miesięczna rata, czy całkowity koszt posiadania (TCO)?", en: "Is the main barrier the monthly payment or the total cost of ownership (TCO)?"}, modifiers: { S: 0.10, C: 0.15 }, playbook_unlock: "tco_vs_lease_argument" },
+                { id: "dd_price_2", text: {pl: "Czy porównuje Pan/Pani wartość Tesli do innych aut w podobnej cenie?", en: "Are you comparing the value of a Tesla to other cars in a similar price range?"}, modifiers: { D: 0.10, C: 0.10 }, playbook_unlock: "value_comparison_argument" }
+            ],
+            "no_charging_place": [
+                { id: "dd_charge_1", text: {pl: "Czy mieszka Pan/Pani w domu jednorodzinnym czy w bloku/apartamentowcu?", en: "Do you live in a single-family house or an apartment building?"}, modifiers: { S: 0.15 }, playbook_unlock: "house_vs_flat_charging_argument" },
+                { id: "dd_charge_2", text: {pl: "Czy obawa dotyczy codziennego ładowania, czy raczej długich wyjazdów?", en: "Is the concern about daily charging or rather long trips?"}, modifiers: { S: 0.10, C: 0.10 }, playbook_unlock: "daily_vs_trip_charging_argument" }
+            ],
+            "family_practicality": [
+                { id: "dd_family_1", text: {pl: "Czy priorytetem jest bezpieczeństwo (foteliki) czy przestrzeń (bagaż)?", en: "Is the priority safety (child seats) or space (luggage)?"}, modifiers: { S: 0.15, C: 0.05 }, playbook_unlock: "safety_vs_space_argument" },
+                { id: "dd_family_2", text: {pl: "Czy auto będzie używane głównie do jazdy po mieście, czy na długie wakacje?", en: "Will the car be used mainly for city driving or for long holidays?"}, modifiers: { S: 0.10, I: 0.05 }, playbook_unlock: "city_vs_holiday_use_argument" },
+                { id: "dd_family_3", text: {pl: "Czy kluczowa jest rozrywka dla dzieci (Netflix, gry)?", en: "Is entertainment for children (Netflix, games) a key factor?"}, modifiers: { I: 0.15 }, playbook_unlock: "entertainment_for_kids_argument" }
+            ]
+        };
+
+        const unlocked_playbook_content = {
+            "acceleration_focus_argument": { title: {pl: "Argument: Fokus na przyspieszenie", en: "Argument: Focus on Acceleration"}, content: {pl: "Podkreśl, że Model 3 Performance osiąga 100 km/h w 3.3 sekundy, co deklasuje większość aut sportowych w tym segmencie cenowym. To nie jest tylko szybkie auto - to supersamochód w cenie sedana.", en: "Emphasize that the Model 3 Performance reaches 100 km/h in 3.3 seconds, outperforming most sports cars in this price segment. It's not just a fast car - it's a supercar at the price of a sedan."} },
+            "track_mode_argument": { title: {pl: "Argument: Tryb Torowy (Track Mode)", en: "Argument: Track Mode"}, content: {pl: "Wspomnij o dedykowanym 'Track Mode V2', który pozwala na pełną personalizację balansu mocy, kontroli trakcji i chłodzenia baterii. To narzędzie stworzone dla entuzjastów, którzy chcą wycisnąć z auta 100% na torze.", en: "Mention the dedicated 'Track Mode V2', which allows for full customization of power balance, traction control, and battery cooling. It's a tool created for enthusiasts who want to get 100% out of the car on the track."} },
+            "trip_planner_argument": { title: {pl: "Argument: Planer Podróży", en: "Argument: Trip Planner"}, content: {pl: "Pokaż klientowi wbudowany w nawigację planer podróży. Podkreśl, że system sam planuje postoje na ładowanie, uwzględniając Superchargery i czas potrzebny na doładowanie. To całkowicie eliminuje 'range anxiety' na długich trasach.", en: "Show the customer the built-in trip planner in the navigation. Emphasize that the system automatically plans charging stops, including Superchargers and the time needed to recharge. This completely eliminates 'range anxiety' on long trips."} },
+            "home_charging_argument": { title: {pl: "Argument: Wygoda Ładowania w Domu", en: "Argument: Convenience of Home Charging"}, content: {pl: "Przedstaw ładowanie w domu jako zmianę paradygmatu: 'Każdego ranka budzi się Pan z w pełni naładowanym autem, gotowym na 400-500 km jazdy. To tak, jakby mieć stację benzynową w garażu, ale znacznie taniej.'", en: "Present home charging as a paradigm shift: 'Every morning you wake up with a fully charged car, ready for 400-500 km of driving. It's like having a gas station in your garage, but much cheaper.'"} },
+            "tco_vs_lease_argument": { title: {pl: "Argument: Rata vs TCO", en: "Argument: Monthly Payment vs TCO"}, content: {pl: "Jeśli klient skupia się na racie, przedstaw atrakcyjne warunki leasingu. Jeśli na TCO, pokaż szczegółową kalkulację oszczędności na paliwie i serwisie w perspektywie 5 lat, udowadniając, że wyższa cena zakupu zwraca się z nawiązką.", en: "If the customer focuses on the monthly payment, present attractive leasing terms. If on TCO, show a detailed calculation of fuel and service savings over 5 years, proving that the higher purchase price pays for itself and then some."} },
+            "value_comparison_argument": { title: {pl: "Argument: Wartość vs Cena", en: "Argument: Value vs Price"}, content: {pl: "Zgódź się, że inne auta mogą być tańsze, ale podkreśl 'wartość' Tesli: najniższa utrata wartości na rynku, ciągłe aktualizacje oprogramowania, dostęp do sieci Supercharger i najwyższe bezpieczeństwo. To inwestycja, nie tylko wydatek.", en: "Agree that other cars might be cheaper, but emphasize the 'value' of a Tesla: the lowest depreciation on the market, continuous software updates, access to the Supercharger network, and top safety. It's an investment, not just an expense."} },
+            "house_vs_flat_charging_argument": { title: {pl: "Argument: Ładowanie Dom vs Blok", en: "Argument: House vs Apartment Charging"}, content: {pl: "Dla domu: podkreśl wygodę i niski koszt Wall Connector. Dla bloku: przedstaw mapę publicznych ładowarek, w tym szybkich DC w okolicy, i opowiedz o współpracy z firmami instalującymi ładowarki w garażach podziemnych.", en: "For a house: emphasize the convenience and low cost of a Wall Connector. For an apartment: present a map of public chargers, including fast DC chargers in the area, and talk about partnerships with companies that install chargers in underground garages."} },
+            "daily_vs_trip_charging_argument": { title: {pl: "Argument: Ładowanie Codzienne vs Podróże", en: "Argument: Daily vs Trip Charging"}, content: {pl: "Wyjaśnij, że 95% ładowań odbywa się w domu, co jest tanie i wygodne. Na długie podróże jest sieć Superchargerów, która dzięki Planerowi Podróży jest w pełni zautomatyzowana i bezproblemowa. 'Tankujesz' auto tam, gdzie śpisz, a nie na stacji.", en: "Explain that 95% of charging happens at home, which is cheap and convenient. For long trips, there's the Supercharger network, which is fully automated and hassle-free thanks to the Trip Planner. You 'fuel' the car where you sleep, not at a station."} },
+            "safety_vs_space_argument": { title: {pl: "Argument: Bezpieczeństwo vs Przestrzeń", en: "Argument: Safety vs Space"}, content: {pl: "Jeśli priorytetem jest bezpieczeństwo, skup się na 5 gwiazdkach Euro NCAP i łatwości montażu 3 fotelików ISOFIX. Jeśli przestrzeń - pokaż ogromny bagażnik przedni (frunk) i tylny oraz płaską podłogę w drugim rzędzie siedzeń.", en: "If the priority is safety, focus on the 5-star Euro NCAP rating and the ease of installing 3 ISOFIX child seats. If it's space - show the huge front (frunk) and rear trunks and the flat floor in the second row of seats."} },
+            "city_vs_holiday_use_argument": { title: {pl: "Argument: Miasto vs Wakacje", en: "Argument: City vs Holiday"}, content: {pl: "Dla miasta: podkreśl zdalne włączanie klimatyzacji/ogrzewania, co jest idealne dla dzieci. Dla wakacji: argumentuj niskim kosztem przejazdu (np. 15 zł/100km) i Autopilotem, który znacznie zmniejsza zmęczenie kierowcy na długich trasach.", en: "For the city: highlight remote climate control activation, which is perfect for kids. For holidays: argue the low cost of travel (e.g., 15 PLN/100km) and Autopilot, which significantly reduces driver fatigue on long trips."} },
+            "entertainment_for_kids_argument": { title: {pl: "Argument: Rozrywka dla Dzieci", en: "Argument: Entertainment for Kids"}, content: {pl: "Pokaż wbudowane aplikacje takie jak Netflix, YouTube i gry. Podkreśl, że długie podróże z dziećmi stają się przyjemnością, a nie walką o uwagę. To unikalna cecha, której nie oferuje większość konkurencji.", en: "Showcase built-in apps like Netflix, YouTube, and games. Emphasize that long trips with children become a pleasure, not a fight for attention. This is a unique feature that most competitors do not offer."} }
+        };
+
+        // Communication Cheatsheet Database
+        const communication_data = {
+            D: {
+                keywords: {pl: ["efektywność", "wynik", "przewaga", "lider", "innowacja", "moc", "kontrola"], en: ["efficiency", "result", "advantage", "leader", "innovation", "power", "control"]},
+                phrases: [
+                    {pl: "To rozwiązanie zapewni Panu/Pani przewagę konkurencyjną i maksymalny zwrot z inwestycji.", en: "This solution will give you a competitive advantage and maximum return on investment."},
+                    {pl: "Skupmy się na konkretnych wynikach: ten model gwarantuje najniższy koszt TCO w swojej klasie.", en: "Let's focus on concrete results: this model guarantees the lowest TCO in its class."}
+                ],
+                talking_points: [
+                    {pl: "Korzyści Podatkowe: Amortyzacja 225 000 zł i 100% odliczenie VAT.", en: "Tax Benefits: 225,000 PLN depreciation and 100% VAT deduction."},
+                    {pl: "Wizerunek Biznesowy: Innowacyjna firma, która dba o przyszłość.", en: "Business Image: An innovative company that cares about the future."},
+                    {pl: "ROI: Zwrot z inwestycji w 3-4 lata dzięki oszczędnościom.", en: "ROI: Return on investment in 3-4 years thanks to savings."}
+                ]
+            },
+            I: {
+                keywords: {pl: ["niesamowite", "rewolucja", "społeczność", "razem", "wyjątkowy", "inspiracja", "przyszłość"], en: ["amazing", "revolution", "community", "together", "unique", "inspiration", "future"]},
+                phrases: [
+                    {pl: "Proszę sobie wyobrazić, jakie wrażenie zrobi to na Pana/Pani znajomych i partnerach biznesowych!", en: "Imagine the impression this will make on your friends and business partners!"},
+                    {pl: "Dołączając do nas, staje się Pan/Pani częścią ekskluzywnej społeczności innowatorów.", en: "By joining us, you become part of an exclusive community of innovators."}
+                ],
+                talking_points: [
+                    {pl: "Status Społeczny: Posiadanie Tesli to symbol nowoczesności i sukcesu.", en: "Social Status: Owning a Tesla is a symbol of modernity and success."},
+                    {pl: "Społeczność: Dostęp do ekskluzywnych wydarzeń i grupy właścicieli.", en: "Community: Access to exclusive events and a group of owners."},
+                    {pl: "Nowe Technologie: Będzie Pan/Pani zawsze o krok przed innymi.", en: "New Technologies: You will always be one step ahead of others."}
+                ]
+            },
+            S: {
+                keywords: {pl: ["bezpieczeństwo", "gwarancja", "stabilność", "wsparcie", "rodzina", "zaufanie", "spokój"], en: ["safety", "guarantee", "stability", "support", "family", "trust", "peace"]},
+                phrases: [
+                    {pl: "Naszym priorytetem jest zapewnienie Panu/Pani pełnego bezpieczeństwa i spokoju na lata.", en: "Our priority is to provide you with complete safety and peace of mind for years to come."},
+                    {pl: "To sprawdzona i niezawodna technologia z 8-letnią gwarancją na baterię, której zaufały już tysiące rodzin w Polsce.", en: "This is a proven and reliable technology with an 8-year battery warranty, trusted by thousands of families in Poland."}
+                ],
+                talking_points: [
+                    {pl: "Bezpieczeństwo Rodziny: 5 gwiazdek w testach Euro NCAP i zaawansowane systemy.", en: "Family Safety: 5 stars in Euro NCAP tests and advanced systems."},
+                    {pl: "Niezawodność: 8 lat gwarancji na baterię i napęd, minimalna obsługa.", en: "Reliability: 8-year warranty on battery and drive unit, minimal maintenance."},
+                    {pl: "Oszczędności Długoterminowe: Stabilne i przewidywalne koszty utrzymania.", en: "Long-Term Savings: Stable and predictable maintenance costs."}
+                ]
+            },
+            C: {
+                keywords: {pl: ["dane", "analiza", "dowód", "specyfikacja", "jakość", "precyzja", "weryfikacja"], en: ["data", "analysis", "proof", "specification", "quality", "precision", "verification"]},
+                phrases: [
+                    {pl: "Pozwoli Pan/Pani, że przedstawię szczegółową analizę danych i konkretne dowody potwierdzające nasze tezy.", en: "Allow me to present a detailed data analysis and concrete evidence supporting our claims."},
+                    {pl: "Wszystkie nasze twierdzenia opieramy na weryfikowalnych danych i niezależnych testach.", en: "All our claims are based on verifiable data and independent tests."}
+                ],
+                talking_points: [
+                    {pl: "Analiza TCO: Pokażę Panu dokładne wyliczenia, które udowadniają opłacalność.", en: "TCO Analysis: I will show you exact calculations that prove its cost-effectiveness."},
+                    {pl: "Dane Techniczne: Porozmawiajmy o specyfikacji baterii, wydajności i kWh.", en: "Technical Data: Let's talk about battery specifications, efficiency, and kWh."},
+                    {pl: "Jakość i Precyzja: Omówmy proces produkcyjny i materiały użyte w pojeździe.", en: "Quality and Precision: Let's discuss the manufacturing process and the materials used in the vehicle."}
+                ]
+            }
+        };
+
+        // --- CORE APPLICATION DATABASE v13.0 ---
+        const a_database = {
+            config: {
+                demographic_modifiers: {
+                    age: { "18-25": {I:0.15, D:0.10, S:-0.05, C:-0.10}, "26-35": {I:0.10, D:0.15, S:0.05, C:0.05}, "36-50": {D:0.20, C:0.15, S:0.10, I:0.05}, "51-65": {S:0.20, C:0.10, D:0.05, I:-0.05}, "65+": {S:0.25, C:0.05, D:-0.10, I:-0.15} },
+                    family_status: { single: {I:0.15, D:0.10, S:-0.05, C:0.05}, couple: {I:0.10, D:0.05, S:0.10, C:0.10}, family: {S:0.20, C:0.10, D:0.05, I:0.05} }
+                }
+            },
+            demographic_options: {
+                age: { label: {pl: "Przedział wiekowy", en: "Age Range"}, options: { none: {pl: "Nieznany", en: "Unknown"}, "18-25": "18-25", "26-35": "26-35", "36-50": "36-50", "51-65": "51-65", "65+": "65+" } },
+                family_status: { label: {pl: "Status rodzinny", en: "Family Status"}, options: { none: {pl: "Nieznany", en: "Unknown"}, single: {pl: "Singiel/ka", en: "Single"}, couple: {pl: "Para", en: "Couple"}, family: {pl: "Rodzina", en: "Family"} } }
+            },
+            context_options: [ 
+                { id: 'solar_panels', label: {pl: "Posiada Panele PV", en: "Has Solar Panels"} }, 
+                { id: 'business_context', label: {pl: "Prowadzi firmę", en: "Runs a Business"} }, 
+                { id: 'family_context', label: {pl: "Ma rodzinę", en: "Has a Family"} } 
+            ],
+            trigger_categories: { 
+                "financial": {pl: "💰 Finanse i Koszty", en: "💰 Finance & Costs"}, 
+                "technical": {pl: "⚙️ Techniczne i Praktyczne", en: "⚙️ Technical & Practical"}, 
+                "infrastructure": {pl: "🏠 Infrastruktura", en: "🏠 Infrastructure"},
+                "competitive": {pl: "🏁 Porównania i Konkurencja", en: "🏁 Comparisons & Competition"},
+                "timing": {pl: "⏰ Czas i Proces Decyzyjny", en: "⏰ Timing & Decision Process"},
+                "family_context": {pl: "👨‍👩‍👧‍👦 Kontekst Rodzinny", en: "👨‍👩‍👧‍👦 Family Context"},
+                "brand_perception": {pl: "🏢 Postrzeganie Marki", en: "🏢 Brand Perception"}
+            },
+            triggers: [
+                { id: 'price_concern', text: {pl: "Cena jest za wysoka / To za drogo", en: "The price is too high / It's too expensive"}, category: "financial", personality_resonance: {"S": 10, "C": 9, "D": 5, "I": 4}, archetypes: ['budget_conscious_family', 'cautious_adopter'], impact_score: 9, objection_id: 'OBJ_PRICE_HIGH', fun_drive_score: -8, responses: { default: {pl: "Rozumiem, to duża inwestycja. Spójrzmy na całkowity koszt posiadania.", en: "I understand, it's a big investment. Let's look at the total cost of ownership."} } },
+                { id: 'financial_q', text: {pl: "Jakie są opcje finansowania/leasingu?", en: "What are the financing/leasing options?"}, category: "financial", personality_resonance: {"C": 10, "S": 8, "D": 6, "I": 5}, archetypes: ['budget_conscious_family', 'data_driven_professional', 'fleet_manager'], impact_score: 8, fun_drive_score: -6, responses: { default: {pl: "Oczywiście, mamy kilka opcji. Porównajmy kredyt z leasingiem.", en: "Of course, we have several options. Let's compare a loan with a lease."} } },
+                { id: 'gov_programs', text: {pl: "Jakie są programy rządowe i dopłaty?", en: "What are the government programs and subsidies?"}, category: "financial", personality_resonance: {"S": 9, "C": 9, "I": 6, "D": 5}, archetypes: ['budget_conscious_family', 'eco_economist'], impact_score: 8, fun_drive_score: -5, responses: { default: {pl: "Świetne pytanie! Program 'NaszEauto' to realna oszczędność.", en: "Great question! The 'OurEV' program is a real saving."} } },
+                { id: 'range_anxiety', text: {pl: "Boję się o zasięg, zwłaszcza zimą", en: "I'm worried about the range, especially in winter"}, category: "technical", personality_resonance: {"S": 10, "C": 9, "D": 6, "I": 4}, archetypes: ['safety_first_parents', 'cautious_adopter'], impact_score: 8, objection_id: 'OBJ_RANGE_WINTER', fun_drive_score: 2, responses: { default: {pl: "To najczęstsza obawa, która znika po pierwszym tygodniu.", en: "That's the most common concern, and it disappears after the first week."} } },
+                { id: 'battery_degradation', text: {pl: "Boję się o degradację i żywotność baterii", en: "I'm worried about battery degradation and lifespan"}, category: "technical", personality_resonance: {"C": 10, "S": 9, "D": 5, "I": 4}, archetypes: ['data_driven_professional', 'cautious_adopter'], impact_score: 7, fun_drive_score: -2, responses: { default: {pl: "Nasze baterie są projektowane na lata, a gwarancja to potwierdza.", en: "Our batteries are designed for years, and the warranty confirms it."} } },
+                { id: 'performance_interest', text: {pl: "Interesuje mnie wydajność i przyspieszenie", en: "I'm interested in performance and acceleration"}, category: "technical", personality_resonance: {"D": 10, "I": 8, "C": 5, "S": 3}, archetypes: ['performance_enthusiast', 'tech_executive'], impact_score: 7, fun_drive_score: 6, responses: { default: {pl: "W takim razie jest Pan w dobrym miejscu! Umówmy się na jazdę próbną.", en: "Then you've come to the right place! Let's schedule a test drive."} } },
+                { id: 'charging_infrastructure_concern', text: {pl: "Obawiam się o infrastrukturę ładowania / dostępność ładowarek", en: "I'm concerned about charging infrastructure / charger availability"}, category: "infrastructure", personality_resonance: {"S": 10, "C": 9, "D": 4, "I": 3}, archetypes: ['cautious_adopter', 'safety_first_parents'], impact_score: 8, fun_drive_score: 1, responses: { default: {pl: "To ważna kwestia. Sieć Superchargerów Tesli jest najszybsza i najbardziej niezawodna w Polsce.", en: "That's an important point. Tesla's Supercharger network is the fastest and most reliable in Poland."} } },
+                { id: 'no_charging_place', text: {pl: "Nie mam gdzie ładować / Ładowanie jest kłopotliwe", en: "I have nowhere to charge / Charging is a hassle"}, category: "infrastructure", personality_resonance: {"S": 10, "C": 8, "D": 4, "I": 3}, archetypes: ['cautious_adopter', 'luxury_traditionalist'], impact_score: 8, fun_drive_score: 0, responses: { default: {pl: "Sprawdźmy, jakie są opcje w Pana okolicy. Często jest ich więcej, niż się wydaje.", en: "Let's check the options in your area. There are often more than you think."} } },
+                { id: 'compare_bmw', text: {pl: "Porównuję z BMW iX3", en: "I'm comparing with the BMW iX3"}, category: "competitive", personality_resonance: {"D": 8, "C": 8, "I": 6, "S": 5}, archetypes: ['luxury_traditionalist', 'performance_enthusiast'], impact_score: 7, competitor_id: 'bmw_ix3', fun_drive_score: -3, responses: { default: {pl: "To świetne auto, ale Tesla oferuje unikalny ekosystem i technologię.", en: "That's a great car, but Tesla offers a unique ecosystem and technology."} } },
+                { id: 'compare_audi', text: {pl: "Porównuję z Audi Q4 e-tron", en: "I'm comparing with the Audi Q4 e-tron"}, category: "competitive", personality_resonance: {"D": 8, "C": 8, "I": 6, "S": 5}, archetypes: ['luxury_traditionalist', 'data_driven_professional'], impact_score: 7, competitor_id: 'audi_q4_etron', fun_drive_score: -3, responses: { default: {pl: "Rozumiem, Q4 ma świetne wnętrze. Porównajmy koszty i technologię.", en: "I understand, the Q4 has a great interior. Let's compare costs and technology."} } },
+                { id: 'procrastination', text: {pl: "Muszę się zastanowić / Może powinienem poczekać", en: "I need to think about it / Maybe I should wait"}, category: "timing", personality_resonance: {"S": 10, "C": 9, "I": 5, "D": 4}, archetypes: ['cautious_adopter', 'luxury_traditionalist'], impact_score: 5, fun_drive_score: 3, responses: { default: {pl: "Oczywiście. Co konkretnie powstrzymuje Pana przed decyzją już dziś?", en: "Of course. What specifically is holding you back from deciding today?"} } },
+                { id: 'fast_purchase', text: {pl: "Chcę kupić jak najszybciej, jaki jest czas oczekiwania?", en: "I want to buy ASAP, what's the waiting time?"}, category: "timing", personality_resonance: {"D": 10, "I": 8, "S": 5, "C": 5}, archetypes: ['early_adopter', 'business_optimizer'], impact_score: 9, fun_drive_score: -10, responses: { default: {pl: "Świetnie! Sprawdźmy dostępne od ręki modele.", en: "Great! Let's check the models available immediately."} } },
+                { id: 'family_practicality', text: {pl: "Czy to praktyczne auto dla rodziny z dziećmi?", en: "Is it a practical car for a family with kids?"}, category: "family_context", personality_resonance: {"S": 10, "C": 8, "I": 7, "D": 6}, archetypes: ['safety_first_parents', 'green_pioneer_family'], impact_score: 8, fun_drive_score: -4, responses: { default: {pl: "Model Y został zaprojektowany z myślą o rodzinach. Bezpieczeństwo i przestrzeń to priorytety.", en: "The Model Y was designed with families in mind. Safety and space are priorities."} } },
+                { id: 'spouse_consult', text: {pl: "Muszę to skonsultować z żoną/mężem", en: "I need to consult my wife/husband"}, category: "family_context", personality_resonance: {"S": 10, "I": 7, "C": 6, "D": 5}, archetypes: ['safety_first_parents', 'green_pioneer_family'], impact_score: 6, fun_drive_score: -1, responses: { default: {pl: "Oczywiście, to wspólna decyzja. Może umówimy jazdę próbną dla Państwa obojga?", en: "Of course, it's a joint decision. Perhaps we can schedule a test drive for you both?"} } },
+                { id: 'musk_concern', text: {pl: "Wizerunek Elona Muska mnie zniechęca", en: "Elon Musk's image discourages me"}, category: "brand_perception", personality_resonance: {"I": 8, "S": 7, "C": 6, "D": -2}, archetypes: ['luxury_traditionalist', 'eco_economist'], impact_score: 4, fun_drive_score: 5, responses: { default: {pl: "Rozumiem. Skupmy się na produkcie, jego technologii i zaletach dla Pana.", en: "I understand. Let's focus on the product, its technology, and the benefits for you."} } }
+            ],
+            disc_profiles: {
+                D: { name: {pl: "Dominujący", en: "Dominant"}, description: {pl: "Zorientowany na cel, szybki w działaniu, lubi kontrolę i wyzwania. Chce najlepszych wyników i przewagi.", en: "Goal-oriented, fast-acting, likes control and challenges. Wants the best results and an advantage."}},
+                I: { name: {pl: "Wpływowy", en: "Influential"}, description: {pl: "Entuzjastyczny, towarzyski, optymistyczny. Lubi nowości, bycie w centrum uwagi i dzielenie się doświadczeniami.", en: "Enthusiastic, sociable, optimistic. Likes novelty, being the center of attention, and sharing experiences."}},
+                S: { name: {pl: "Stały", en: "Steady"}, description: {pl: "Spokojny, lojalny, ceni bezpieczeństwo i stabilność. Potrzebuje czasu, gwarancji i zaufania.", en: "Calm, loyal, values security and stability. Needs time, guarantees, and trust."}},
+                C: { name: {pl: "Sumienny", en: "Conscientious"}, description: {pl: "Analityczny, precyzyzy, ceni fakty, dane i jakość. Potrzebuje dowodów i logicznych argumentów.", en: "Analytical, precise, values facts, data, and quality. Needs proof and logical arguments."}}
+            },
+            archetypes: {
+                'green_pioneer_family': { name: {pl: "Zielona Rodzina Pionierów", en: "Green Pioneer Family"}, weekend_test_drive_potential: 7, description: {pl: "Rodzina, dla której wartości ekologiczne i przyszłość dzieci są równie ważne co bezpieczeństwo i rozsądne koszty.", en: "A family for whom ecological values and their children's future are as important as safety and reasonable costs."}, strategy: { opening_line: {pl: "Czy wyobrażają sobie Państwo wakacje, podczas których nie tylko oszczędzacie na paliwie, ale też zostawiacie czystszy świat dla swoich dzieci?", en: "Can you imagine a vacation where you not only save on fuel but also leave a cleaner world for your children?"}, argument_stack: { soft: {pl: "Tesla eliminuje 100% lokalnych emisji spalin.", en: "Tesla eliminates 100% of local tailpipe emissions."}, medium: {pl: "Model Y ma 5-gwiazdkowy rating bezpieczeństwa w każdej kategorii.", en: "The Model Y has a 5-star safety rating in every category."}, strong: {pl: "Z panelami PV jeździcie Państwo praktycznie za darmo.", en: "With solar panels, you drive practically for free."} }, social_proof: {pl: "Case study polskiej rodziny z fotowoltaiką.", en: "Case study of a family with photovoltaics."}, roi_hook: {pl: "Miesięczne oszczędności na paliwie to rata za wakacje.", en: "Monthly fuel savings can cover a vacation installment."}, next_question: {pl: "Ile kilometrów miesięcznie pokonują Państwo całą rodziną?", en: "How many kilometers does your family travel per month?"}, recommended_techniques: ['benefits_language', 'social_proof'] } },
+                'safety_first_parents': { name: {pl: "Rodzice Stawiający na Bezpieczeństwo", en: "Safety-First Parents"}, weekend_test_drive_potential: 8, description: {pl: "Priorytetem jest ochrona rodziny, bazują na faktach dotyczących bezpieczeństwa i niezawodności.", en: "The priority is family protection, relying on facts about safety and reliability."}, strategy: { opening_line: {pl: "Wiem, że bezpieczeństwo jest dla Pana absolutnym priorytetem. Porozmawiajmy o tym, dlaczego Tesla jest jednym z najbezpieczniejszych aut na świecie.", en: "I know that safety is your absolute priority. Let's talk about why Tesla is one of the safest cars in the world."}, argument_stack: { soft: {pl: "Konstrukcja Tesli z nisko położoną baterią drastycznie obniża ryzyko dachowania.", en: "Tesla's design with a low-placed battery drastically reduces the risk of rollover."}, medium: {pl: "Systemy jak automatyczne hamowanie awaryjne działają non-stop, by chronić Pana rodzinę.", en: "Systems like automatic emergency braking work non-stop to protect your family."}, strong: {pl: "Tesla Model Y otrzymał najwyższe możliwe oceny bezpieczeństwa od Euro NCAP i NHTSA.", en: "The Tesla Model Y received the highest possible safety ratings from Euro NCAP and NHTSA."} }, social_proof: {pl: "Link do oficjalnych wyników i wideo z testów zderzeniowych Euro NCAP.", en: "Link to official results and videos of Euro NCAP crash tests."}, roi_hook: {pl: "Spokój ducha jest bezcenny.", en: "Peace of mind is priceless."}, next_question: {pl: "Który aspekt bezpieczeństwa jest dla Pana najważniejszy?", en: "Which aspect of safety is most important to you?"}, recommended_techniques: ['authority', 'social_proof'] } },
+                'budget_conscious_family': { name: {pl: "Rodzina z Ograniczonym Budżetem", en: "Budget-Conscious Family"}, weekend_test_drive_potential: 6, description: {pl: "Skupieni na całkowitym koszcie posiadania (TCO), szukają maksymalnych oszczędności i dotacji.", en: "Focused on the total cost of ownership (TCO), looking for maximum savings and subsidies."}, strategy: { opening_line: {pl: "Rozumiem, że budżet jest kluczowy. Spójrzmy na liczby i zobaczmy, jak Tesla może być bardziej opłacalna niż auto spalinowe.", en: "I understand that budget is key. Let's look at the numbers and see how a Tesla can be more cost-effective than a gasoline car."}, argument_stack: { soft: {pl: "Dzięki dotacji 'Mój Elektryk' cena jest niższa nawet o 27 000 zł.", en: "Thanks to the 'My Electrician' subsidy, the price is lower by up to PLN 27,000."}, medium: {pl: "Miesięczne oszczędności na paliwie to często 400-600 zł.", en: "Monthly fuel savings are often PLN 400-600."}, strong: {pl: "Całkowity koszt posiadania (TCO) na 5 lat jest o ok. 30 000 zł niższy niż porównywalnego SUVa.", en: "The total cost of ownership (TCO) over 5 years is about PLN 30,000 lower than a comparable SUV."} }, social_proof: {pl: "Interaktywny kalkulator TCO online.", en: "Interactive TCO calculator online."}, roi_hook: {pl: "Oszczędność 7 000 – 9 000 zł rocznie na paliwie i serwisie.", en: "Savings of 7,000 - 9,000 PLN annually on fuel and service."}, next_question: {pl: "Jakie są Państwa obecne miesięczne wydatki na paliwo i serwis?", en: "What are your current monthly expenses for fuel and service?"}, recommended_techniques: ['framing', 'scarcity_ethical'] } },
+                'cautious_adopter': { name: {pl: "Ostrożny Adopter", en: "Cautious Adopter"}, weekend_test_drive_potential: 8, description: {pl: "Ostrożny, unika ryzyka, potrzebuje dowodów na niezawodność. Boi się być 'królikiem doświadczalnym'.", en: "Cautious, avoids risk, needs proof of reliability. Afraid of being a 'guinea pig'."}, strategy: { opening_line: {pl: "Rozumiem Pana ostrożność. Skupmy się na faktach, które pokazują, jak dojrzałą technologią jest dziś Tesla.", en: "I understand your caution. Let's focus on the facts that show how mature Tesla's technology is today."}, argument_stack: { soft: {pl: "Tesla produkuje auta od ponad 15 lat, a po drogach jeździ ich ponad 5 milionów.", en: "Tesla has been producing cars for over 15 years, and there are over 5 million of them on the road."}, medium: {pl: "Na baterię i napęd otrzymuje Pan 8 lat gwarancji.", en: "You get an 8-year warranty on the battery and drive unit."}, strong: {pl: "Model 3/Y to najlepiej sprzedający się EV na świecie.", en: "The Model 3/Y is the world's best-selling EV."} }, social_proof: {pl: "Raporty niezawodności od Consumer Reports lub TUV.", en: "Reliability reports from Consumer Reports or TUV."}, roi_hook: {pl: "Inwestycja w najdłużej rozwijaną technologię EV na rynku.", en: "An investment in the longest-developed EV technology on the market."}, next_question: {pl: "Jaki element technologii budzi Pana największe obawy?", en: "Which element of the technology raises your biggest concerns?"}, recommended_techniques: ['authority', 'social_proof'] } },
+                'luxury_traditionalist': { name: {pl: "Luksusowy Tradycjonalista", en: "Luxury Traditionalist"}, weekend_test_drive_potential: 7, description: {pl: "Ceni komfort, jakość wykonania i prestiż znanych marek. Sceptyczny wobec minimalistycznego designu.", en: "Values comfort, build quality, and the prestige of well-known brands. Skeptical of minimalist design."}, strategy: { opening_line: {pl: "Rozumiem, że jest Pan przyzwyczajony do najwyższych standardów. Proponuję spojrzeć na Teslę jako na nową definicję luksusu.", en: "I understand you are accustomed to the highest standards. I suggest looking at Tesla as a new definition of luxury."}, argument_stack: { soft: {pl: "Absolutna cisza i brak wibracji zapewniają nieosiągalny komfort akustyczny.", en: "Absolute silence and lack of vibrations provide unattainable acoustic comfort."}, medium: {pl: "Panoramiczny dach i minimalistyczne wnętrze tworzą poczucie przestrzeni.", en: "The panoramic roof and minimalist interior create a sense of space."}, strong: {pl: "Oferujemy Serwis Mobilny, który przyjeżdża do Pana domu lub biura.", en: "We offer Mobile Service that comes to your home or office."} }, social_proof: {pl: "Opinie byłych właścicieli BMW/Mercedes, którzy przesiedli się na Teslę.", en: "Testimonials from former BMW/Mercedes owners who switched to Tesla."}, roi_hook: {pl: "Luksus posiadania auta, które samo się aktualizuje.", en: "The luxury of owning a car that updates itself."}, next_question: {pl: "Co w Pana obecnym aucie definiuje dla Pana luksus?", en: "What defines luxury for you in your current car?"}, recommended_techniques: ['benefits_language', 'authority'] } },
+                'performance_enthusiast': { name: {pl: "Entuzjasta Osiągów", en: "Performance Enthusiast"}, weekend_test_drive_potential: 4, description: {pl: "Skupiony na przyspieszeniu, prowadzeniu i zaawansowaniu technicznym. Liczy się adrenalina.", en: "Focused on acceleration, handling, and technical advancement. Adrenaline is what counts."}, strategy: { opening_line: {pl: "Jeśli szuka Pan adrenaliny, nic nie przygotuje Pana na doświadczenie jazdy Teslą.", en: "If you're looking for adrenaline, nothing can prepare you for the experience of driving a Tesla."}, argument_stack: { soft: {pl: "Natychmiastowy moment obrotowy sprawia, że jest szybsza w mieście od aut sportowych.", en: "Instant torque makes it faster in the city than sports cars."}, medium: {pl: "Dzięki baterii w podłodze ma środek ciężkości jak bolid F1.", en: "Thanks to the battery in the floor, it has a center of gravity like an F1 car."}, strong: {pl: "Model 3 Performance z trybem 'Track Mode' to broń na torze wyścigowym.", en: "The Model 3 Performance with 'Track Mode' is a weapon on the racetrack."} }, social_proof: {pl: "Wideo z wyścigów na 1/4 mili, gdzie Tesla wygrywa z supersamochodami.", en: "Video from 1/4 mile races where Tesla beats supercars."}, roi_hook: {pl: "Osiągi Porsche 911 w cenie rodzinnego sedana.", en: "Porsche 911 performance at the price of a family sedan."}, next_question: {pl: "Chce Pan porozmawiać o liczbach, czy poczuć to przyspieszenie?", en: "Do you want to talk numbers, or feel that acceleration?"}, recommended_techniques: ['benefits_language'] } },
+                'data_driven_professional': { name: {pl: "Profesjonalista Opierający się na Danych", en: "Data-Driven Professional"}, weekend_test_drive_potential: 9, description: {pl: "Podejmuje decyzje w oparciu o twarde dane, analizy i ROI. Emocje mają drugorzędne znaczenie.", en: "Makes decisions based on hard data, analysis, and ROI. Emotions are secondary."}, strategy: { opening_line: {pl: "Rozumiem, że liczą się fakty. Przygotowałem zestawienie danych, aby mógł Pan dokonać świadomej analizy.", en: "I understand that facts matter. I have prepared a data summary so you can make an informed analysis."}, argument_stack: { soft: {pl: "Koszt przejechania 100 km to około 12 zł przy ładowaniu w domu.", en: "The cost of driving 100 km is about PLN 12 when charging at home."}, medium: {pl: "Model Y ma jeden z najniższych współczynników oporu powietrza w klasie (0.23).", en: "The Model Y has one of the lowest drag coefficients in its class (0.23)."}, strong: {pl: "Analiza TCO na 5 lat w porównaniu do Audi Q5 pokazuje, że Tesla jest tańsza o ponad 40 000 zł.", en: "A 5-year TCO analysis compared to an Audi Q5 shows that the Tesla is over PLN 40,000 cheaper."} }, social_proof: {pl: "Link do niezależnego raportu technicznego (np. od Bjørna Nylanda).", en: "Link to an independent technical report (e.g., from Bjørn Nyland)."}, roi_hook: {pl: "ROI z inwestycji w Teslę vs auto spalinowe wynosi ok. 15% rocznie.", en: "The ROI on a Tesla investment vs. a gasoline car is about 15% annually."}, next_question: {pl: "Który parametr jest dla Pana kluczowy do dalszej analizy?", en: "Which parameter is key for your further analysis?"}, recommended_techniques: ['authority', 'framing'] } },
+                'eco_economist': { name: {pl: "Eko-Ekonomista", en: "Eco-Economist"}, weekend_test_drive_potential: 6, description: {pl: "Łączy troskę o środowisko z analizą ekonomiczną. Chce, aby ekologia mu się opłacała.", en: "Combines environmental concerns with economic analysis. Wants ecology to be profitable for them."}, strategy: { opening_line: {pl: "Szuka Pan rozwiązania inteligentnego dla portfela i dla planety. Spójrzmy na Teslę jak na system, który to łączy.", en: "You're looking for a solution that's smart for your wallet and the planet. Let's look at Tesla as a system that combines both."}, argument_stack: { soft: {pl: "Tesla publikuje roczne raporty wpływu, pokazując transparentnie ślad węglowy.", en: "Tesla publishes annual impact reports, transparently showing its carbon footprint."}, medium: {pl: "Połączenie Tesli z fotowoltaiką to synergia idealna.", en: "Combining a Tesla with photovoltaics is the perfect synergy."}, strong: {pl: "Analiza LCA pokazuje, że Tesla ma niższy ślad węglowy niż auto spalinowe już po 2-3 latach.", en: "LCA analysis shows that a Tesla has a lower carbon footprint than a gasoline car after just 2-3 years."} }, social_proof: {pl: "Link do oficjalnego raportu 'Tesla Impact Report'.", en: "Link to the official 'Tesla Impact Report'."}, roi_hook: {pl: "Inwestycja w niezależność energetyczną.", en: "An investment in energy independence."}, next_question: {pl: "Co jest ważniejsze: analiza śladu węglowego czy symulacja oszczędności z PV?", en: "What's more important: carbon footprint analysis or PV savings simulation?"}, recommended_techniques: ['framing', 'authority'] } },
+                'early_adopter': { name: {pl: "Wczesny Adopter", en: "Early Adopter"}, weekend_test_drive_potential: 3, description: {pl: "Podekscytowany nowościami, chce być pierwszy i kreować trendy. Kupuje wizję i emocje.", en: "Excited by novelty, wants to be first and set trends. Buys into the vision and emotions."}, strategy: { opening_line: {pl: "Widzę, że interesuje Pana przyszłość motoryzacji. Tesla tę przyszłość tworzy, a Pan może być jej częścią.", en: "I see you're interested in the future of mobility. Tesla is creating that future, and you can be a part of it."}, argument_stack: { soft: {pl: "Co kilka tygodni dostaje Pan aktualizacje z nowymi funkcjami.", en: "You get updates with new features every few weeks."}, medium: {pl: "Będzie Pan naturalnym liderem opinii i wyznaczał trendy w okolicy.", en: "You will be a natural opinion leader and trendsetter in your area."}, strong: {pl: "Dostęp do funkcji FSD beta daje Panu wgląd w technologię przyszłości.", en: "Access to the FSD beta gives you a glimpse into the technology of the future."} }, social_proof: {pl: "Historie i blogi pierwszych właścicieli Tesli w Polsce.", en: "Stories and blogs of the first Tesla owners in Poland."}, roi_hook: {pl: "Wartość bycia pierwszym jest niemierzalna.", en: "The value of being first is immeasurable."}, next_question: {pl: "Która z nadchodzących funkcji Tesli ekscytuje Pana najbardziej?", en: "Which of Tesla's upcoming features excites you the most?"}, recommended_techniques: ['social_proof', 'benefits_language'] } },
+                'business_optimizer': { name: {pl: "Optymalizator Biznesowy", en: "Business Optimizer"}, weekend_test_drive_potential: 7, description: {pl: "Analizuje korzyści dla firmy, TCO i ROI. Samochód to zasób, który ma zarabiać.", en: "Analyzes benefits for the company, TCO, and ROI. The car is an asset that is supposed to earn money."}, strategy: { opening_line: {pl: "Traktuje Pan samochód jako inwestycję. Porozmawiajmy, jak Tesla może stać się rentownym aktywem.", en: "You treat the car as an investment. Let's talk about how a Tesla can become a profitable asset."}, argument_stack: { soft: {pl: "Wyższy limit amortyzacji (225 tys. zł) to konkretna korzyść.", en: "The higher depreciation limit (PLN 225k) is a concrete benefit."}, medium: {pl: "Brak przeglądów olejowych oznacza minimalne przestoje floty.", en: "No oil changes means minimal fleet downtime."}, strong: {pl: "TCO dla Tesli w firmie jest o 30-40% niższy niż dla auta premium.", en: "The TCO for a Tesla in a company is 30-40% lower than for a premium car."} }, social_proof: {pl: "Case study firmy, która wymieniła flotę na Tesle.", en: "Case study of a company that replaced its fleet with Teslas."}, roi_hook: {pl: "ROI na poziomie 20% rocznie dzięki oszczędnościom i podatkom.", en: "An ROI of 20% annually thanks to savings and taxes."}, next_question: {pl: "Ile aut ma Pan w firmie? Przygotuję symulację TCO.", en: "How many cars do you have in your company? I'll prepare a TCO simulation."}, recommended_techniques: ['framing', 'authority'] } },
+                'fleet_manager': { name: {pl: "Fleet Manager", en: "Fleet Manager"}, weekend_test_drive_potential: 8, description: {pl: "Zarządza flotą pojazdów w firmie, skupiony na TCO, niezawodności i minimalizacji przestojów.", en: "Manages a company's vehicle fleet, focused on TCO, reliability, and minimizing downtime."}, strategy: { opening_line: {pl: "Wiem, że zarządzanie flotą to optymalizacja kosztów i maksymalna niezawodność. Pokażę Panu, jak Tesla rewolucjonizuje oba te obszary.", en: "I know that fleet management is about cost optimization and maximum reliability. Let me show you how Tesla revolutionizes both of these areas."}, argument_stack: { soft: {pl: "Brak wymiany oleju, filtrów czy świec zapłonowych oznacza niemal zerowe koszty regularnych przeglądów.", en: "No oil, filter, or spark plug changes mean almost zero regular maintenance costs."}, medium: {pl: "Zdalna diagnostyka i serwis mobilny minimalizują przestoje pojazdów do absolutnego minimum.", en: "Remote diagnostics and mobile service minimize vehicle downtime to an absolute minimum."}, strong: {pl: "Całkowity koszt posiadania (TCO) Tesli we flocie jest o 30-50% niższy w porównaniu do aut spalinowych klasy premium.", en: "The total cost of ownership (TCO) for a Tesla in a fleet is 30-50% lower compared to premium combustion cars."} }, social_proof: {pl: "Case study dużej firmy, która zelektryfikowała flotę i obniżyła koszty o 40%.", en: "Case study of a large company that electrified its fleet and reduced costs by 40%."}, roi_hook: {pl: "Każde 100 000 km to oszczędność rzędu 25 000 zł na samym paliwie i serwisie w porównaniu do diesla.", en: "Every 100,000 km saves around 25,000 PLN on fuel and service alone compared to a diesel."}, next_question: {pl: "Z ilu pojazdów składa się Pana flota i jakie są średnie roczne przebiegi?", en: "How many vehicles are in your fleet and what are the average annual mileages?"}, recommended_techniques: ['framing', 'authority'] } },
+                'tech_executive': { name: {pl: "Tech Executive", en: "Tech Executive"}, weekend_test_drive_potential: 7, description: {pl: "Lider technologiczny, dla którego samochód jest wizytówką innowacyjności i statusu. Ceni wydajność, technologię i wizerunek.", en: "A technology leader for whom a car is a showcase of innovation and status. Values performance, technology, and image."}, strategy: { opening_line: {pl: "Najbardziej zaawansowana AI-platforma na kołach, z flotą > 2 mln pojazdów trenujących Dojo.", en: "The most advanced AI platform on wheels, with a fleet of > 2 million vehicles training Dojo."}, argument_stack: { soft: {pl: "Pańskie auto będzie stawało się lepsze z czasem dzięki bezpłatnym aktualizacjom oprogramowania, które dodają nowe funkcje.", en: "Your car will get better over time with free software updates that add new features."}, medium: {pl: "Przyspieszenie i responsywność napędu elektrycznego to doświadczenie, którego nie da się porównać z żadnym autem spalinowym.", en: "The acceleration and responsiveness of the electric drive is an experience that cannot be compared to any combustion engine car."}, strong: {pl: "Model S Plaid to nie tylko samochód, to manifestacja technologicznej dominacji - najszybszy seryjny pojazd na świecie.", en: "The Model S Plaid is not just a car, it's a statement of technological dominance - the fastest production vehicle in the world."} }, social_proof: {pl: "Artykuły w 'Wired' lub 'MIT Technology Review' opisujące Teslę jako przełom technologiczny.", en: "Articles in 'Wired' or 'MIT Technology Review' describing Tesla as a technological breakthrough."}, roi_hook: {pl: "Inwestycja w markę, która jest synonimem przyszłości i innowacji.", en: "An investment in a brand that is synonymous with the future and innovation."}, next_question: {pl: "Który aspekt technologiczny - oprogramowanie, osiągi czy autonomiczna jazda - jest dla Pana najbardziej ekscytujący?", en: "Which technological aspect - software, performance, or autonomous driving - is most exciting for you?"}, recommended_techniques: ['social_proof', 'benefits_language'] } }
+            },
+            model_recommendations: {
+                'green_pioneer_family': { model: "Model Y", justification: {pl: "Idealny dla rodziny dzięki przestronności i bezpieczeństwu.", en: "Perfect for a family due to its spaciousness and safety."} },
+                'tech_executive': { model: "Model S", justification: {pl: "Reprezentuje szczyt technologii i osiągów, podkreślając status lidera.", en: "Represents the pinnacle of technology and performance, emphasizing a leader's status."} },
+                'safety_first_parents': { model: "Model Y", justification: {pl: "Uznawany za jeden z najbezpieczniejszych samochodów rodzinnych.", en: "Considered one of the safest family cars."} },
+                'budget_conscious_family': { model: "Model 3 (RWD)", justification: {pl: "Najbardziej przystępny cenowo model, oferujący najniższy TCO.", en: "The most affordable model, offering the lowest TCO."} },
+                'cautious_adopter': { model: "Model Y", justification: {pl: "Najlepiej sprzedający się i najdłużej testowany na masową skalę model.", en: "The best-selling and most extensively tested model on a mass scale."} },
+                'fleet_manager': { model: "Model Y Long Range", justification: {pl: "Optymalny wybór dla flot dzięki niskiemu TCO, dużemu zasięgowi i minimalnym kosztom serwisowym.", en: "The optimal choice for fleets due to low TCO, long range, and minimal service costs."} },
+                'default': { model: "Model Y", justification: {pl: "Wszechstronny wybór pasujący do wielu potrzeb.", en: "A versatile choice that fits many needs."} }
+            }
+        };
+        
+        // --- MAIN APPLICATION LOGIC v13.0 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const langToggleButton = document.getElementById('lang-toggle');
+            const analysisSection = document.getElementById('analysisSection');
+            const analyzeButton = document.getElementById('analyzeButton');
+            const resetButton = document.getElementById('resetButton');
+            const deepDiveModal = document.getElementById('deepDiveModal');
+            const closeDeepDiveButton = document.getElementById('closeDeepDiveButton');
+            const applyDeepDiveButton = document.getElementById('applyDeepDiveButton');
+
+            function setLanguage(lang) {
+                currentLanguage = lang;
+                document.documentElement.lang = lang;
+                langToggleButton.textContent = lang === 'pl' ? 'EN' : 'PL';
+                
+                Object.keys(translations.pl).forEach(key => {
+                    const element = document.getElementById(key.replace(/_/g, '-'));
+                    if (element) {
+                        element.textContent = translations[lang][key] || translations.pl[key];
+                    }
+                });
+                
+                const selectedData = getSelectedInputs();
+                initializeUI(selectedData);
+
+                if (!analysisSection.classList.contains('hidden')) {
+                    const analysisResult = JSON.parse(analysisSection.dataset.analysisResult || '{}');
+                    if (analysisResult.discScores) {
+                        updateResultsUI(analysisResult);
+                    }
+                }
+            }
+
+            function getSelectedInputs() {
+                const triggers = Array.from(document.querySelectorAll('input[data-type="trigger"]:checked')).map(cb => cb.id);
+                const context = Array.from(document.querySelectorAll('input[data-type="context"]:checked')).map(cb => cb.id);
+                const demographics = {};
+                document.querySelectorAll('select[data-type="demographic"]').forEach(sel => {
+                    demographics[sel.dataset.key] = sel.value;
+                });
+                return { triggers, context, demographics };
+            }
+
+            function initializeUI(selectedData = {triggers: [], context: [], demographics: {}}) {
+                const lang = currentLanguage;
+                const demographicsContainer = document.getElementById('demographicsContainer');
+                const contextContainer = document.getElementById('contextContainer');
+                const triggersContainer = document.getElementById('triggersContainer');
+
+                // Demographics
+                demographicsContainer.innerHTML = '';
+                for (const key in a_database.demographic_options) {
+                    const item = a_database.demographic_options[key];
+                    let selectHtml = `<div><label for="demo-${key}" class="block text-sm font-medium text-gray-300 mb-1">${item.label[lang]}</label><select id="demo-${key}" data-type="demographic" data-key="${key}" class="w-full rounded-md border-gray-600 bg-gray-700 text-white focus:border-red-500 focus:ring-red-500 p-2">`;
+                    for (const value in item.options) {
+                        const optionText = typeof item.options[value] === 'object' ? item.options[value][lang] : item.options[value];
+                        const isSelected = selectedData.demographics && selectedData.demographics[key] === value;
+                        selectHtml += `<option value="${value}" ${isSelected ? 'selected' : ''}>${optionText}</option>`;
+                    }
+                    selectHtml += `</select></div>`;
+                    demographicsContainer.innerHTML += selectHtml;
+                }
+                
+                // Context
+                contextContainer.innerHTML = '';
+                a_database.context_options.forEach(info => {
+                    const isChecked = selectedData.context.includes(info.id);
+                    contextContainer.innerHTML += `<div id="card-${info.id}" class="card rounded-lg p-3 flex items-center ${isChecked ? 'selected' : ''}"><input id="${info.id}" type="checkbox" class="custom-checkbox h-4 w-4 rounded bg-gray-700 border-gray-600 focus:ring-red-500 pointer-events-none" data-type="context" ${isChecked ? 'checked' : ''}><span class="ml-3 text-sm font-medium text-white">${info.label[lang]}</span></div>`;
+                });
+
+                // Triggers
+                triggersContainer.innerHTML = '';
+                const groupedTriggers = a_database.triggers.reduce((acc, trigger) => {
+                    const category = trigger.category;
+                    if (!acc[category]) acc[category] = [];
+                    acc[category].push(trigger);
+                    return acc;
+                }, {});
+
+                for (const categoryId in a_database.trigger_categories) {
+                    if (!groupedTriggers[categoryId]) continue;
+                    const categoryName = a_database.trigger_categories[categoryId][lang];
+                    let categoryHtml = `<div class="mb-6"><h3 class="text-xl font-semibold text-gray-300 mb-4">${categoryName}</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                    groupedTriggers[categoryId].forEach(trigger => {
+                        const isChecked = selectedData.triggers.includes(trigger.id);
+                        const quickResponse = trigger.responses ? trigger.responses.default[lang] : '';
+                        const hasDeepDive = deep_dive_data[trigger.id];
+
+                        categoryHtml += `<div id="card-${trigger.id}" class="card rounded-lg p-4 ${isChecked ? 'selected' : ''}">
+                                            <div class="flex items-start">
+                                                <input id="${trigger.id}" type="checkbox" class="custom-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 focus:ring-red-500 mt-1 flex-shrink-0 pointer-events-none" data-type="trigger" ${isChecked ? 'checked' : ''}>
+                                                <div class="ml-4 flex-1">
+                                                    <p class="font-semibold text-white">${trigger.text[lang]}</p>
+                                                    ${quickResponse ? `<p class="text-sm text-gray-400 mt-2"><span class="font-semibold text-gray-300">${translations[lang].quick_response}:</span> <span class="quick-response-text">${quickResponse}</span></p>` : ''}
+                                                </div>
+                                            </div>
+                                            ${hasDeepDive ? `<div class="text-right mt-2"><button data-trigger-id="${trigger.id}" class="deep-dive-btn text-sm text-red-400 hover:text-red-300 font-semibold">${translations[lang].deep_dive_button}</button></div>` : ''}
+                                         </div>`;
+                    });
+                    categoryHtml += `</div></div>`;
+                    triggersContainer.innerHTML += categoryHtml;
+                }
+
+                document.querySelectorAll('.card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('deep-dive-btn')) return;
+                        const checkbox = card.querySelector('input[type="checkbox"]');
+                        if (checkbox) {
+                            checkbox.checked = !checkbox.checked;
+                            card.classList.toggle('selected', checkbox.checked);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.deep-dive-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showDeepDiveModal(btn.dataset.triggerId);
+                    });
+                });
+            }
+
+            function showDeepDiveModal(triggerId) {
+                const lang = currentLanguage;
+                const questions = deep_dive_data[triggerId];
+                if (!questions) return;
+
+                const contentContainer = document.getElementById('deepDiveContent');
+                document.getElementById('deepDiveTitle').textContent = translations[lang].deep_dive_title;
+                document.getElementById('applyDeepDiveButton').textContent = translations[lang].deep_dive_apply;
+                document.getElementById('closeDeepDiveButton').textContent = translations[lang].deep_dive_cancel;
+
+                contentContainer.innerHTML = '';
+                questions.forEach((q, index) => {
+                    const isChecked = selectedDeepDive[triggerId] === q.id;
+                    contentContainer.innerHTML += `
+                        <label for="dd-q-${index}" class="flex items-center p-3 bg-gray-700 rounded-md cursor-pointer hover:bg-gray-600">
+                            <input id="dd-q-${index}" type="radio" name="deep-dive-${triggerId}" value="${q.id}" class="custom-radio h-4 w-4 rounded-full" ${isChecked ? 'checked' : ''}>
+                            <span class="ml-3 text-white text-sm">${q.text[lang]}</span>
+                        </label>
+                    `;
+                });
+                
+                applyDeepDiveButton.onclick = () => {
+                    const selectedRadio = contentContainer.querySelector(`input[name="deep-dive-${triggerId}"]:checked`);
+                    if (selectedRadio) {
+                        selectedDeepDive[triggerId] = selectedRadio.value;
+                    } else {
+                        delete selectedDeepDive[triggerId];
+                    }
+                    deepDiveModal.classList.add('hidden');
+                };
+
+                deepDiveModal.classList.remove('hidden');
+            }
+            
+            closeDeepDiveButton.addEventListener('click', () => deepDiveModal.classList.add('hidden'));
+
+            function runAdvancedAnalysis() {
+                const { triggers: selectedTriggerIds, context: selectedContextIds, demographics: selectedDemographics } = getSelectedInputs();
+
+                if (selectedTriggerIds.length === 0 && Object.values(selectedDemographics).every(v => v === 'none' || !v)) {
+                    showModal(translations[currentLanguage].modal_error_text);
+                    return null;
+                }
+
+                let discScores = { D: 1, I: 1, S: 1, C: 1 };
+                let archetypeScores = {};
+                let detectedObjectionIds = new Set();
+                let detectedCompetitorIds = new Set();
+                let unlockedPlaybookItems = new Set();
+                let funDriveScore = 0;
+
+                const selectedTriggers = a_database.triggers.filter(t => selectedTriggerIds.includes(t.id));
+
+                selectedTriggers.forEach(trigger => {
+                    const impactMultiplier = 1 + ((trigger.impact_score || 5) / 10);
+                    
+                    for (const type in trigger.personality_resonance) {
+                        discScores[type] += trigger.personality_resonance[type] * impactMultiplier;
+                    }
+                    if (trigger.archetypes) {
+                        trigger.archetypes.forEach(arch => {
+                            archetypeScores[arch] = (archetypeScores[arch] || 0) + 1 * impactMultiplier;
+                        });
+                    }
+                    if (trigger.objection_id) detectedObjectionIds.add(trigger.objection_id);
+                    if (trigger.competitor_id) detectedCompetitorIds.add(trigger.competitor_id);
+                    if (trigger.fun_drive_score) funDriveScore += trigger.fun_drive_score;
+                });
+                
+                Object.keys(selectedDeepDive).forEach(triggerId => {
+                    const selectedQuestionId = selectedDeepDive[triggerId];
+                    const question = deep_dive_data[triggerId]?.find(q => q.id === selectedQuestionId);
+                    if (question) {
+                        for (const discType in question.modifiers) {
+                            discScores[discType] *= (1 + question.modifiers[discType]);
+                        }
+                        if (question.playbook_unlock) {
+                            unlockedPlaybookItems.add(question.playbook_unlock);
+                        }
+                    }
+                });
+                
+                let demoCount = 0;
+                Object.keys(selectedDemographics).forEach(key => {
+                    const value = selectedDemographics[key];
+                    if (value && value !== 'none') {
+                        demoCount++;
+                        const modifierGroup = a_database.config.demographic_modifiers[key];
+                        if (modifierGroup && modifierGroup[value]) {
+                            const modifiers = modifierGroup[value];
+                            for (const discType in modifiers) {
+                                discScores[discType] *= (1 + modifiers[discType]);
+                            }
+                        }
+                    }
+                });
+
+                const totalScore = Object.values(discScores).reduce((sum, score) => sum + Math.max(0, score), 0);
+                if (totalScore > 0) {
+                    for (const type in discScores) {
+                        discScores[type] = Math.max(0, (discScores[type] / totalScore) * 100 * 2.5);
+                        discScores[type] = Math.min(100, discScores[type]);
+                    }
+                }
+
+                const sortedDisc = Object.entries(discScores).sort((a, b) => b[1] - a[1]);
+                const mainDiscType = sortedDisc.length > 0 && sortedDisc[0][1] > 0 ? sortedDisc[0][0] : 'S';
+                
+                const sortedArchetypes = Object.entries(archetypeScores).sort((a, b) => b[1] - a[1]);
+                let mainArchetypeKey = "cautious_adopter"; // Default
+                if (sortedArchetypes.length > 0 && sortedArchetypes[0][1] > 0) {
+                    mainArchetypeKey = sortedArchetypes[0][0];
+                }
+
+
+                const confidence = calculateAdvancedConfidence(discScores, selectedTriggerIds.length, demoCount);
+                const ovnPotential = a_database.archetypes[mainArchetypeKey]?.weekend_test_drive_potential || 5;
+
+                return { discScores, mainDiscType, mainArchetypeKey, confidence, selectedContextIds, detectedObjectionIds: Array.from(detectedObjectionIds), detectedCompetitorIds: Array.from(detectedCompetitorIds), unlockedPlaybookItems: Array.from(unlockedPlaybookItems), funDriveScore, ovnPotential };
+            }
+
+            function calculateAdvancedConfidence(discScores, triggerCount, demoCount) {
+                const scores = Object.values(discScores);
+                const totalScore = scores.reduce((a, b) => a + b, 0);
+                if (totalScore === 0) return 0;
+                const sortedScores = [...scores].sort((a, b) => b - a);
+                const dominance = sortedScores[0] > 0 ? (sortedScores[0] - sortedScores[1]) / sortedScores[0] : 0;
+                const signalStrength = Math.min(dominance, 1.0);
+                const completeness = Math.min((triggerCount + demoCount) / 8, 1.0);
+                const confidence = (signalStrength * 0.6) + (completeness * 0.4);
+                return Math.min(99, Math.round(confidence * 100));
+            }
+            
+            function injectData(text, lang) {
+                if (!text) return '(brak danych)';
+                const subsidies = market_data.government_subsidies.nasz_eauto_program;
+                const numberFormatter = new Intl.NumberFormat(lang === 'pl' ? 'pl-PL' : 'en-US');
+                return text
+                    .replace(/\[REMAINING_BUDGET\]/g, numberFormatter.format(subsidies.remaining_budget))
+                    .replace(/\[DEPLETION_DATE\]/g, subsidies.estimated_depletion_date)
+                    .replace(/\[SUBSIDY_AMOUNT\]/g, numberFormatter.format(subsidies.subsidy_amounts.business_lease_new_ev));
+            }
+            
+            function updateResultsUI(analysisResult) {
+                const lang = currentLanguage;
+                analysisSection.dataset.analysisResult = JSON.stringify(analysisResult);
+                
+                const tabsContainer = document.getElementById('tabs');
+                const tabContentContainer = document.getElementById('tabContent');
+
+                const tabDefinitions = [
+                    { id: 'summary', label: translations[lang].tabs.summary, builder: buildSummaryTab },
+                    { id: 'communication', label: translations[lang].tabs.communication, builder: buildCommunicationTab },
+                    { id: 'playbook', label: translations[lang].tabs.playbook, builder: buildPlaybookTab },
+                    { id: 'objections', label: translations[lang].tabs.objections, builder: buildObjectionsTab, condition: analysisResult.detectedObjectionIds.length > 0 },
+                    { id: 'competition', label: translations[lang].tabs.competition, builder: buildCompetitionTab, condition: analysisResult.detectedCompetitorIds.length > 0 },
+                    { id: 'techniques', label: translations[lang].tabs.techniques, builder: buildTechniquesTab }
+                ];
+                
+                tabsContainer.innerHTML = '';
+                tabContentContainer.innerHTML = '';
+                let isFirst = true;
+
+                tabDefinitions.forEach(tabDef => {
+                    if (tabDef.condition === false) return;
+
+                    tabsContainer.innerHTML += `<button data-tab="${tabDef.id}" class="tab whitespace-nowrap py-3 px-2 sm:px-4 border-b-2 font-medium text-sm border-transparent text-gray-400 hover:text-white ${isFirst ? 'active' : ''}">${tabDef.label}</button>`;
+                    tabContentContainer.innerHTML += `<div id="${tabDef.id}" class="p-4 ${isFirst ? '' : 'hidden'}">${tabDef.builder(analysisResult, lang)}</div>`;
+                    isFirst = false;
+                });
+
+                const chartCanvas = document.getElementById('discRadarChart');
+                if (chartCanvas) {
+                    const { discScores } = analysisResult;
+                    const chartData = {
+                        labels: ['Dominant (D)', 'Influential (I)', 'Steady (S)', 'Conscientious (C)'],
+                        datasets: [{
+                            label: translations[lang].disc_radar_title,
+                            data: [discScores.D, discScores.I, discScores.S, discScores.C],
+                            fill: true, backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgb(239, 68, 68)',
+                            pointBackgroundColor: 'rgb(239, 68, 68)', pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff', pointHoverBorderColor: 'rgb(239, 68, 68)'
+                        }]
+                    };
+                    if (discChart) discChart.destroy();
+                    discChart = new Chart(chartCanvas, {
+                        type: 'radar', data: chartData,
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { r: { angleLines: { color: 'rgba(255, 255, 255, 0.2)' }, grid: { color: 'rgba(255, 255, 255, 0.2)' }, pointLabels: { color: '#e5e7eb', font: { size: 14 } }, ticks: { display: false, stepSize: 25 }, suggestedMin: 0, suggestedMax: 100 } },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                }
+
+                document.querySelectorAll('.tab').forEach(button => {
+                    button.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        document.querySelectorAll('#tabContent > div').forEach(content => content.classList.add('hidden'));
+                        document.getElementById(button.dataset.tab).classList.remove('hidden');
+                    });
+                });
+            }
+            
+            // --- TAB BUILDER FUNCTIONS ---
+
+            function buildSummaryTab(result, lang) {
+                const { mainDiscType, mainArchetypeKey, confidence, funDriveScore, ovnPotential } = result;
+                const archetype = a_database.archetypes[mainArchetypeKey] || a_database.archetypes['cautious_adopter'];
+                const discProfile = a_database.disc_profiles[mainDiscType];
+                const recommendation = a_database.model_recommendations[mainArchetypeKey] || a_database.model_recommendations['default'];
+                const funDriveColor = funDriveScore < 0 ? 'text-green-400' : 'text-yellow-400';
+                const ovnColor = ovnPotential >= 7 ? 'text-green-400' : (ovnPotential >= 5 ? 'text-yellow-400' : 'text-red-400');
+
+                return `
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="card p-6 rounded-lg lg:col-span-2">
+                            <h3 class="text-lg font-semibold text-gray-400 mb-2 text-center">${translations[lang].disc_radar_title}</h3>
+                            <div class="relative h-64 sm:h-80"><canvas id="discRadarChart"></canvas></div>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="card p-4 rounded-lg text-center">
+                                <h3 class="text-base font-semibold text-gray-400 mb-1">${translations[lang].confidence_title}</h3>
+                                <p class="text-3xl font-bold text-white">${confidence}%</p>
+                            </div>
+                            <div class="card p-4 rounded-lg text-center">
+                                <h3 class="text-base font-semibold text-gray-400 mb-1">${translations[lang].fun_drive_title}</h3>
+                                <p class="text-3xl font-bold ${funDriveColor}">${funDriveScore}</p>
+                            </div>
+                             <div class="card p-4 rounded-lg text-center">
+                                <h3 class="text-base font-semibold text-gray-400 mb-1">${translations[lang].ovn_potential_title}</h3>
+                                <p class="text-3xl font-bold ${ovnColor}">${ovnPotential * 10}%</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                         <div class="card p-6 rounded-lg text-center">
+                            <h3 class="text-lg font-semibold text-gray-400 mb-2">${translations[lang].disc_title}</h3>
+                            <p class="text-3xl font-bold text-red-500">${discProfile.name[lang]}</p>
+                            <p class="text-sm text-gray-400 mt-2">${discProfile.description[lang]}</p>
+                        </div>
+                         <div class="card p-6 rounded-lg text-center">
+                            <h3 class="text-lg font-semibold text-gray-400 mb-2">${translations[lang].archetype_title}</h3>
+                            <p class="text-2xl font-bold text-white">${archetype.name[lang]}</p>
+                            <p class="text-sm text-gray-400 mt-2">${archetype.description[lang]}</p>
+                        </div>
+                    </div>
+                     <div class="card rounded-lg p-6 mt-6 text-center bg-gradient-to-r from-red-500/10 to-gray-800/10">
+                         <h3 class="text-2xl font-bold text-white mb-2">${translations[lang].model_title}</h3>
+                         <p class="text-5xl font-bold text-red-400 mb-3">${recommendation.model}</p>
+                         <p class="text-gray-300 max-w-2xl mx-auto">${recommendation.justification[lang]}</p>
+                     </div>
+                `;
+            }
+
+            function buildCommunicationTab(result, lang) {
+                const { mainDiscType } = result;
+                const comms = communication_data[mainDiscType];
+                if (!comms) return '';
+
+                const keywordsHtml = comms.keywords[lang].map(kw => `<span class="bg-gray-700 text-gray-300 text-xs font-medium px-2.5 py-1 rounded-full">${kw}</span>`).join(' ');
+                const phrasesHtml = comms.phrases.map(p => `<li class="italic">"${p[lang]}"</li>`).join('');
+                const talkingPointsHtml = comms.talking_points.map(tp => `<li>${tp[lang]}</li>`).join('');
+
+                return `
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="font-semibold text-lg text-blue-400">${translations[lang].keywords_title}</h4>
+                            <div class="flex flex-wrap gap-2 mt-2">${keywordsHtml}</div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg text-green-400">${translations[lang].phrases_title}</h4>
+                            <ul class="list-disc list-inside text-gray-300 mt-2 space-y-2">${phrasesHtml}</ul>
+                        </div>
+                         <div>
+                            <h4 class="font-semibold text-lg text-purple-400">${translations[lang].talking_points_title}</h4>
+                            <ul class="list-disc list-inside text-gray-300 mt-2 space-y-2">${talkingPointsHtml}</ul>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function buildPlaybookTab(result, lang) {
+                const { mainArchetypeKey, unlockedPlaybookItems } = result;
+                const archetype = a_database.archetypes[mainArchetypeKey] || a_database.archetypes['cautious_adopter'];
+                const strategy = archetype.strategy;
+                if (!strategy) return `<p>${lang === 'pl' ? 'Brak strategii dla tego archetypu.' : 'No strategy for this archetype.'}</p>`;
+
+                let recommendedTechniquesHtml = (strategy.recommended_techniques || []).map(techId => {
+                    const tech = persuasion_data[techId];
+                    if (!tech) return '';
+                    return `<div class="bg-gray-800/50 p-3 rounded-lg">
+                                <h5 class="font-semibold text-green-400">${tech.name[lang]}</h5>
+                                <p class="text-sm text-gray-400">${tech.description[lang]}</p>
+                            </div>`;
+                }).join('');
+                
+                const argumentStackHtml = strategy.argument_stack ? `
+                    <div>
+                        <h4 class="font-semibold text-lg text-green-400">${lang === 'pl' ? 'Stos Argumentów' : 'Argument Stack'}</h4>
+                        <div class="mt-2 p-4 bg-gray-800/50 rounded-lg space-y-3">
+                            <p><strong class="text-green-300 w-20 inline-block">${lang === 'pl' ? 'Miękki' : 'Soft'}:</strong> ${strategy.argument_stack.soft[lang]}</p>
+                            <p><strong class="text-yellow-300 w-20 inline-block">${lang === 'pl' ? 'Średni' : 'Medium'}:</strong> ${strategy.argument_stack.medium[lang]}</p>
+                            <p><strong class="text-red-300 w-20 inline-block">${lang === 'pl' ? 'Mocny' : 'Strong'}:</strong> ${strategy.argument_stack.strong[lang]}</p>
+                        </div>
+                    </div>` : '';
+                    
+                const toolsHtml = strategy.roi_hook ? `
+                    <div class="grid md:grid-cols-2 gap-6 mt-6">
+                        <div>
+                            <h4 class="font-semibold text-lg text-purple-400">${lang === 'pl' ? 'Hak ROI / TCO' : 'ROI / TCO Hook'}</h4>
+                            <p class="mt-1 p-3 bg-gray-800/50 rounded-lg text-gray-300 font-bold">${strategy.roi_hook[lang]}</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg text-indigo-400">${lang === 'pl' ? 'Sugerowany Dowód Społeczny' : 'Suggested Social Proof'}</h4>
+                            <p class="mt-1 p-3 bg-gray-800/50 rounded-lg text-gray-300">${strategy.social_proof[lang]}</p>
+                        </div>
+                    </div>` : '';
+                    
+                const nextQuestionHtml = strategy.next_question ? `
+                    <div class="mt-6">
+                        <h4 class="font-semibold text-lg text-teal-400">${lang === 'pl' ? 'Następne Najlepsze Pytanie' : 'Next Best Question'}</h4>
+                        <p class="mt-1 p-3 bg-gray-800/50 rounded-lg text-gray-300 italic">"${strategy.next_question[lang]}"</p>
+                    </div>` : '';
+
+                let unlockedContentHtml = '';
+                if (unlockedPlaybookItems.length > 0) {
+                    unlockedContentHtml += `<div class="mt-8 pt-6 border-t border-gray-700">
+                                                <h4 class="font-semibold text-lg text-yellow-400">${translations[lang].unlocked_playbook_title}</h4>
+                                                <div class="mt-2 space-y-3">`;
+                    unlockedPlaybookItems.forEach(itemId => {
+                        const item = unlocked_playbook_content[itemId];
+                        if (item) {
+                            unlockedContentHtml += `<div class="bg-yellow-900/20 p-3 rounded-lg border-l-4 border-yellow-500">
+                                                        <h5 class="font-semibold text-yellow-300">${item.title[lang]}</h5>
+                                                        <p class="text-sm text-gray-300">${item.content[lang]}</p>
+                                                    </div>`;
+                        }
+                    });
+                    unlockedContentHtml += `</div></div>`;
+                }
+
+                return `
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="font-semibold text-lg text-blue-400">${lang === 'pl' ? 'Sugerowana Linia Otwarcia' : 'Suggested Opening Line'}</h4>
+                            <p class="mt-1 p-3 bg-gray-800/50 rounded-lg text-gray-300 italic">"${strategy.opening_line[lang]}"</p>
+                        </div>
+                        ${argumentStackHtml}
+                        ${toolsHtml}
+                        ${nextQuestionHtml}
+                        <div>
+                            <h4 class="font-semibold text-lg text-green-400 mt-6">${lang === 'pl' ? 'Rekomendowane Techniki Perswazji' : 'Recommended Persuasion Techniques'}</h4>
+                            <div class="mt-2 space-y-3">${recommendedTechniquesHtml}</div>
+                        </div>
+                        ${unlockedContentHtml}
+                    </div>
+                `;
+            }
+
+            function buildObjectionsTab(result, lang) {
+                const { detectedObjectionIds } = result;
+                if (detectedObjectionIds.length === 0) return `<p>${lang === 'pl' ? 'Nie wykryto żadnych konkretnych obiekcji.' : 'No specific objections detected.'}</p>`;
+
+                let html = '<div class="space-y-8">';
+                detectedObjectionIds.forEach(objId => {
+                    const objection = objections_data[objId];
+                    const trigger = a_database.triggers.find(t => t.objection_id === objId);
+                    if (!objection || !trigger) return;
+
+                    html += `<div class="card p-4 rounded-lg">
+                                <h4 class="font-semibold text-lg text-red-400 mb-3">${trigger.text[lang]}</h4>
+                                <div class="space-y-4">`;
+
+                    objection.rebuttals.forEach(rebuttal => {
+                        const technique = persuasion_data[rebuttal.technique];
+                        html += `<div class="bg-gray-800/50 p-3 rounded-lg">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-bold text-yellow-400">${lang === 'pl' ? 'Poziom' : 'Level'} ${rebuttal.level}</span>
+                                        <span class="text-sm font-semibold text-gray-300">${lang === 'pl' ? 'Technika' : 'Technique'}: ${technique.name[lang]}</span>
+                                    </div>
+                                    <p class="text-gray-300 italic">"${injectData(rebuttal.script[lang], lang)}"</p>
+                                 </div>`;
+                    });
+
+                    html += `</div></div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            function buildCompetitionTab(result, lang) {
+                const { detectedCompetitorIds } = result;
+                if (detectedCompetitorIds.length === 0) return `<p>${lang === 'pl' ? 'Klient nie odniósł się do konkurencji.' : 'Customer did not refer to competition.'}</p>`;
+
+                let html = '<div class="space-y-6">';
+                detectedCompetitorIds.forEach(compId => {
+                    const competitor = market_data.competitor_analysis[compId];
+                    if (!competitor) return;
+
+                    html += `<div class="card p-4 rounded-lg">
+                                <h4 class="font-semibold text-lg text-blue-400 mb-3">${lang === 'pl' ? 'Analiza Porównawcza' : 'Comparative Analysis'}: ${competitor.name}</h4>
+                                <p class="text-sm text-gray-400 mb-3">${lang === 'pl' ? 'Cena bazowa' : 'Base Price'}: ${new Intl.NumberFormat(lang === 'pl' ? 'pl-PL' : 'en-US', { style: 'currency', currency: 'PLN', minimumFractionDigits: 0 }).format(competitor.base_price)}</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <h5 class="font-medium text-green-400 mb-2">${lang === 'pl' ? 'Kluczowe Zalety' : 'Key Advantages'}</h5>
+                                        <ul class="list-disc list-inside text-gray-300 text-sm space-y-1">${competitor.key_advantages.map(adv => `<li>${adv}</li>`).join('')}</ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-red-400 mb-2">${lang === 'pl' ? 'Kluczowe Wady' : 'Key Disadvantages'}</h5>
+                                        <ul class="list-disc list-inside text-gray-300 text-sm space-y-1">${competitor.key_disadvantages.map(dis => `<li>${dis}</li>`).join('')}</ul>
+                                    </div>
+                                </div>
+                             </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+            
+            function buildTechniquesTab(result, lang) {
+                 let html = `<div class="space-y-4">
+                    <p class="text-gray-400">${lang === 'pl' ? 'Przegląd wszystkich dostępnych technik perswazji.' : 'Overview of all available persuasion techniques.'}</p>`;
+                for(const techId in persuasion_data){
+                    const tech = persuasion_data[techId];
+                    html += `<div class="card p-4 rounded-lg">
+                                <h4 class="font-semibold text-lg text-green-400">${tech.name[lang]}</h4>
+                                <p class="text-gray-300 mt-1">${tech.description[lang]}</p>
+                             </div>`;
+                }
+                html += '</div>';
+                return html;
+            }
+
+
+            function showModal(message) {
+                let modal = document.getElementById('feedbackModal');
+                if (modal) modal.remove();
+                
+                modal = document.createElement('div');
+                modal.id = 'feedbackModal';
+                modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50';
+                modal.innerHTML = `<div class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full text-center border border-gray-700"><p class="text-white mb-6">${message}</p><button id="closeModalButton" class="btn-primary text-white font-bold py-2 px-8 rounded-lg">${translations[currentLanguage].modal_ok_button}</button></div>`;
+                document.body.appendChild(modal);
+                document.getElementById('closeModalButton').onclick = () => modal.remove();
+                modal.onclick = (e) => { if (e.target.id === 'feedbackModal') modal.remove(); };
+            }
+
+            // --- Event Listeners ---
+            analyzeButton.addEventListener('click', () => {
+                const analysisResult = runAdvancedAnalysis();
+                if (analysisResult) {
+                    updateResultsUI(analysisResult);
+                    document.getElementById('inputSection').classList.add('hidden');
+                    analysisSection.classList.remove('hidden');
+                    window.scrollTo(0, 0);
+                }
+            });
+
+            resetButton.addEventListener('click', () => {
+                analysisSection.classList.add('hidden');
+                document.getElementById('inputSection').classList.remove('hidden');
+                if(discChart) {
+                    discChart.destroy();
+                    discChart = null;
+                }
+                selectedDeepDive = {}; // Reset deep dive choices
+                initializeUI();
+            });
+
+            langToggleButton.addEventListener('click', () => {
+                const newLang = currentLanguage === 'pl' ? 'en' : 'pl';
+                setLanguage(newLang);
+            });
+            
+            // Initial setup
+            setLanguage('pl');
+        });
+    </script>
+</body>
+</html>

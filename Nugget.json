@@ -1,0 +1,140 @@
+},
+385     {
+386       "content": "Preferowany styl komunikacji jest profesjonalny i analityczny. Nalezy
+    prezentowac analizy porownawcze, kalkulacje ROI i szczegolowe studia przypadkow.",
+387       "metadata": {
+388         "typ": "komunikacja",
+389         "archetyp": "praktyczny_premium",
+390         "tagi": ["styl_komunikacji", "roi", "analiza"]
+391       }
+392     },
+393     {
+394       "content": "Argument sprzedazowy dla OTA: 'Aktualizacje OTA eliminuja koszt wizyt w
+    serwisie – oprogramowanie naprawia sie samo, a Pan zyskuje wolne popoludnie. Przez 10 lat auto
+    pozostaje aktualne, wiec nie traci na wartosci'.",
+395       "metadata": {
+396         "typ": "argument_sprzedazowy",
+397         "archetyp": "praktyczny_premium",
+398         "cecha": "ota"
+399       }
+400     },
+401     {
+402       "content": "Na obiekcje o koszty serwisu odpowiedz: 'Roczny koszt serwisu jest o 70%
+    nizszy niz w premium ICE z powodu mniejszej liczby czesci ruchomych. Koszty serwisu sa o 30-50%
+    nizsze niz w spalinowkach'.",
+403       "metadata": {
+404         "typ": "taktyka_obiekcji",
+405         "archetyp": "praktyczny_premium",
+406         "obiekcja": "koszty_serwisu"
+407       }
+408     },
+409     {
+410       "content": "Argument sprzedazowy na cene: 'Analiza TCO w calym cyklu zycia pojazdu
+    pokazuje, ze Tesla jest o 35% tansza niz porownywalny samochod premium ICE. Oszczednosci na
+    ubezpieczeniu i utrzymaniu kumuluja sie w czasie'.",
+411       "metadata": {
+412         "typ": "argument_sprzedazowy",
+413         "archetyp": "praktyczny_premium",
+414         "tagi": ["cena", "tco"]
+415       }
+416     }
+417   ],
+418   "straznik_rodziny": [
+419     {
+420       "content": "Straznik Rodziny to nabywca, dla ktorego absolutnym priorytetem sa
+    bezpieczenstwo, komfort i praktycznosc dla calej rodziny.",
+421       "metadata": {
+422         "typ": "profil_psychologiczny",
+423         "archetyp": "straznik_rodziny"
+424       }
+425     },
+426     {
+427       "content": "Glowna obawa jest bezpieczenstwo podczas dlugich podrozy z dziecmi, w tym
+    potencjalny brak ladowarek na trasie.",
+428       "metadata": {
+429         "typ": "obawa",
+430         "archetyp": "straznik_rodziny",
+431         "tagi": ["bezpieczenstwo", "zasieg", "podroze_z_dziecmi"]
+432       }
+433     },
+434     {
+435       "content": "Obawia sie ryzyka awarii baterii w zimie i bezpieczenstwa zwiazanego z
+    ogrzewaniem kabiny w trudnych warunkach pogodowych.",
+436       "metadata": {
+437         "typ": "obawa",
+438         "archetyp": "straznik_rodziny",
+439         "tagi": ["bezpieczenstwo_zima", "awaria_baterii", "ogrzewanie"]
+440       }
+441     },
+442     {
+443       "content": "W komunikacji z nim uzywaj fraz: 'bezpieczenstwo rodziny', 'praktycznosc
+    codzienna', 'ochrona bliskich', 'przestronny i wygodny'.",
+444       "metadata": {
+445         "typ": "komunikacja",
+446         "archetyp": "straznik_rodziny",
+447         "tagi": ["zlote_frazy"]
+448       }
+449     },
+450     {
+451       "content": "Preferowany styl komunikacji jest empatyczny i praktyczny. Najlepiej dzialaja
+    historie prawdziwych uzytkownikow i praktyczne studia przypadkow.",
+452       "metadata": {
+453         "typ": "komunikacja",
+454         "archetyp": "straznik_rodziny",
+455         "tagi": ["styl_komunikacji", "real_stories"]
+456       }
+457     },
+458     {
+459       "content": "Na obawe o bezpieczenstwo w podrozy odpowiedz logika: 'W 2025 r. Polska ma
+    siec ponad 10 tys. punktow ladowania, co umozliwia podroze do 1500 km dziennie, z ladowaniem co
+    2-4 godziny, bez ryzyka dla bezpieczenstwa'.",
+460       "metadata": {
+461         "typ": "taktyka_obiekcji",
+462         "archetyp": "straznik_rodziny",
+463         "obiekcja": "bezpieczenstwo_w_podrozy"
+464       }
+465     },
+466     {
+       "content": "Na obawe o przestrzen i komfort odpowiedz: 'SUV-y EV premium jak Audi Q8
+    e-tron oferuja 500-600 litrow bagaznika i wyzszy komfort dzieki cichej jezdzie, co przewyzsza
+    spalinowki'.",
+       "metadata": {
+        "typ": "taktyka_obiekcji",
+         "archetyp": "straznik_rodziny",
+         "obiekcja": "przestrzen_i_komfort"
+      }
+     },
+     {
+       "content": "Argument sprzedazowy na pytanie o dzialanie zima: 'Bezpieczenstwo z
+    ogrzewaniem kabiny w 5 minut. Ochrona rodziny przed zimnem przez caly rok'.",
+       "metadata": {
+         "typ": "argument_sprzedazowy",
+         "archetyp": "straznik_rodziny",
+        "tagi": ["zima", "bezpieczenstwo", "ogrzewanie"]
+       }
+     }
+   ],
+   "techniczny_sceptyk": ["content": "W rozmowie z Technicznym Sceptykiem, ktory podwaza zywotnosc baterii, kluczowe jest
+      odwolanie sie do twardych, wieloletnich danych. Zamiast ogolnych zapewnien, uzyj konkretnego
+      argumentu: 'Badania Geotab z 2024 roku, obejmujace tysiace pojazdow, pokazuja, ze srednia
+      degradacja baterii to tylko 1.8% rocznie. Oznacza to, ze po 5 latach bateria zachowuje ponad 90%
+      swojej pierwotnej pojemnosci, co potwierdza dojrzalosc i niezawodnosc tej technologii.'",
+       "metadata": {
+         "typ": "taktyka_obiekcji",
+         "archetyp": "techniczny_sceptyk",
+         "obiekcja": "zywotnosc_baterii",
+         "tagi": ["dane", "badania", "niezawodnosc", "degradacja_baterii"]
+      }],
+   "niezdecydowany_odkrywca": ["content": "Niezdecydowany Odkrywca jest przytloczony nadmiarem informacji. Zamiast prezentowac
+     mu skomplikowane dane (TCO, LCA), kluczowe jest zbudowanie poczucia prostoty i kontroli. Skup sie
+     na dwoch filarach: 1) Pokaz, ze jego codzienne trasy (np. 50 km) to tylko maly ulamek zasiegu
+     nowoczesnego EV (400-500 km). 2) Uprosc ladowanie do dwoch scenariuszy: 'tanie ladowanie w domu
+     jak telefon w nocy' na co dzien i 'szybkie ladowarki na autostradzie jak stacje benzynowe' na
+     dlugie wyjazdy.",
+      "metadata": {
+        "typ": "strategia_edukacyjna",
+        "archetyp": "niezdecydowany_odkrywca",
+        "potrzeba": "uproszczenie_informacji",
+       "tagi": ["pierwszy_kontakt", "edukacja", "zasieg", "ladowanie", "budowanie_pewnosci"]
+      }]
+ 
