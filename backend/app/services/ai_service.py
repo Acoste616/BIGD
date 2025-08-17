@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 
 class AIService:
     """
-    Serwis AI dla generowania inteligentnych analiz sprzedażowych
+    Tesla Co-Pilot AI Service - Elitarny ekspert sprzedaży Tesli
     Integruje z modelem gpt-oss:120b poprzez Ollama Turbo Cloud
+    
+    MISJA: Absolutna lojalność wobec marki Tesla. Zero kompromisów.
     
     Konfiguracja:
     - Host: https://ollama.com (chmura z akceleracją sprzętową)
@@ -43,9 +45,9 @@ class AIService:
                 host="https://ollama.com",
                 headers={'Authorization': f'Bearer {settings.OLLAMA_API_KEY}'}
             )
-            logger.info("✅ Klient Ollama Turbo został pomyślnie skonfigurowany.")
+            logger.info("✅ Tesla Co-Pilot AI został pomyślnie skonfigurowany.")
         except Exception as e:
-            logger.error(f"❌ KRYTYCZNY BŁĄD: Nie można skonfigurować klienta Ollama Turbo: {e}")
+            logger.error(f"❌ KRYTYCZNY BŁĄD: Nie można skonfigurować Tesla Co-Pilot AI: {e}")
             self.client = None
     
     async def generate_analysis(
@@ -121,22 +123,34 @@ class AIService:
         session_context: Dict[str, Any]
     ) -> str:
         """
-        Zbuduj dynamiczny prompt systemowy dla LLM
+        Zbuduj dynamiczny prompt systemowy dla LLM - NOWA WERSJA PRO-TESLA
         """
-        # Podstawowy kontekst roli
-        system_prompt = """Jesteś EKSPERTEM SPRZEDAŻY SAMOCHODÓW ELEKTRYCZNYCH i doradcą AI dla sprzedawców Tesla.
+        
+        # === WARSTWA 1: NADRZĘDNA MISJA (NON-NEGOTIABLE) ===
+        system_prompt = """Jesteś elitarnym Co-Pilotem Sprzedaży TESLI. Twoim jedynym i absolutnym celem jest maksymalizacja sprzedaży samochodów MARKI TESLA. Twoja lojalność wobec marki Tesla jest absolutna. Nigdy, pod żadnym pozorem, nie proponujesz produktów konkurencji, nie chwalisz ich, ani nie zachęcasz do ich testowania. Jesteś stronniczym, ale niezwykle skutecznym ekspertem Tesli.
 
-Twoją misją jest analizowanie sytuacji sprzedażowej i dostarczanie PRECYZYJNYCH, PRAKTYCZNYCH rad, które pomogą sprzedawcy zamknąć transakcję.
+"""
 
-INSTRUKCJE KLUCZOWE:
-1. Analizuj psychologię klienta na podstawie jego archetypu
-2. Identyfikuj sygnały kupna i sygnały ryzyka
-3. Sugeruj KONKRETNE akcje, które sprzedawca może natychmiast podjąć
-4. Przewiduj zastrzeżenia i przygotuj odpowiedzi
-5. Oceń sentiment i potencjał na skali 1-10
+        # === WARSTWA 2: DEFINICJA WROGA (KONKURENCJA) ===
+        system_prompt += """Główni konkurenci, o których może wspomnieć klient, to Audi (szczególnie Q4 e-tron), BMW (szczególnie iX3), Mercedes, BYD. Twoim zadaniem jest zidentyfikowanie, kiedy klient o nich wspomina, i natychmiastowe oraz skuteczne przekierowanie rozmowy na unikalne przewagi i korzyści Tesli.
+
+"""
+
+        # === WARSTWA 3: ZŁOTE ZASADY (HARD RULES) ===
+        system_prompt += """TWOJE ZASADY SĄ NIEZŁOMNE:
+1.  **NIGDY NIE REKOMENDUJ PRODUKTU KONKURENCJI.** Nigdy nie sugeruj jazdy próbnej, nie analizuj pozytywnie ich cech, nie chwal ich designu. To jest zdrada Twojej misji.
+2.  **ZAWSZE PRZEKIEROWUJ ROZMOWĘ.** Gdy klient chwali cechę konkurenta (np. "design Audi"), Twoja odpowiedź musi być w stylu: "Cieszę się, że docenia Pan nowoczesny styl. W Tesli podchodzimy do designu holistycznie, łącząc go z aerodynamiką i oprogramowaniem, co daje unikalne korzyści, takie jak...". Zawsze wracaj do Tesli.
+3.  **TWOIM PRODUKTEM JEST TESLA.** Koniec. Twoje sugestie, pytania i analizy muszą w efekcie prowadzić do zwiększenia zainteresowania i chęci zakupu Tesli.
+4.  **BĄDŹ SUBTELNY, ALE ZDECYDOWANY.** Nie krytykuj bezpośrednio konkurencji. Zamiast tego, podkreślaj obszary, w których Tesla ma obiektywną i druzgocącą przewagę (sieć Supercharger, oprogramowanie i aktualizacje OTA, TCO, bezpieczeństwo, ekosystem).
+
+"""
+
+        # === WARSTWA 4: OSOBOWOŚĆ I TON ===
+        system_prompt += """Twoja osobowość to połączenie Elona Muska (wizjonerstwo, odwaga) i Steve'a Jobsa (obsesja na punkcie produktu i doświadczenia użytkownika). Jesteś pasjonatem, ekspertem i strategiem. Twój ton jest pewny siebie, profesjonalny i inspirujący.
 
 """
         
+        # === WARSTWA 5: KONTEKST ROZMOWY (Dynamiczna część) ===
         # Dodaj profil klienta
         if client_profile:
             system_prompt += f"""
@@ -174,7 +188,8 @@ HISTORIA SESJI (ostatnie interakcje):
 
 """
         
-        # Instrukcje wyjściowe z nowymi zasadami
+        # === WARSTWA 6: NARZĘDZIA ANALITYCZNE I FORMAT WYJŚCIOWY ===
+        # Instrukcje wyjściowe z nowymi zasadami  
         system_prompt += """
 TWOJE NARZĘDZIA ANALITYCZNE (Frameworki):
 - Psychologia sprzedaży Tesla (archetypy klientów)
@@ -370,35 +385,36 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
         logger.warning(f"🔄 AI Service: Używam fallback response dla: '{user_input[:50]}...'")
         
         return {
-            "main_analysis": f"Analiza automatyczna: '{user_input[:100]}...' - Nie udało się połączyć z AI. Sprawdź sytuację według standardowych procedur.",
+            "main_analysis": f"Analiza Tesla Co-Pilot: '{user_input[:100]}...' - Połączenie z AI chwilowo niedostępne. Skup się na unikatowych przewagach Tesli: Supercharger, OTA updates, bezpieczeństwo 5-gwiazdek.",
             "client_archetype": "Nieznany (błąd AI)",
             "confidence_level": 30,
             
             "suggested_actions": [
-                {"action": "Zadawaj pytania otwarte", "reasoning": "Zbieraj więcej informacji"},
-                {"action": "Słuchaj aktywnie", "reasoning": "Zrozum potrzeby klienta"},
-                {"action": "Przedstaw korzyści", "reasoning": "Buduj wartość produktu"},
-                {"action": "Zaproponuj następny krok", "reasoning": "Utrzymaj momentum"}
+                {"action": "Podkreśl przewagi sieci Supercharger", "reasoning": "Unikalna przewaga Tesli nad konkurencją"},
+                {"action": "Omów aktualizacje OTA", "reasoning": "Auto które ciągle się rozwija - tego nie ma konkurencja"},
+                {"action": "Zaprezentuj najwyższe oceny bezpieczeństwa", "reasoning": "Tesla liderem w testach NHTSA i Euro NCAP"},
+                {"action": "Pokaż oszczędności TCO", "reasoning": "Długoterminowa wartość przewyższa konkurencję"}
             ],
             
-            "buy_signals": ["zainteresowanie", "pytania szczegółowe"],
-            "risk_signals": ["wahanie", "brak zaangażowania"],
+            "buy_signals": ["pytania o Tesli", "zainteresowanie technologią"],
+            "risk_signals": ["porównania z konkurencją", "wahania cenowe"],
             
             "key_insights": [
-                "AI niedostępny - użyj doświadczenia",
-                "Skup się na budowaniu relacji",
-                "Zadawaj pytania kwalifikujące"
+                "AI niedostępny - skup się na przewagach Tesli",
+                "Tesla = jedyna marka z prawdziwą autonomią",
+                "Supercharger network to game changer"
             ],
             
             "objection_handlers": {
-                "za drogo": "Pokaż wartość długoterminową",
-                "potrzebuję czasu": "Zapytaj o konkretne obawy"
+                "za drogo": "Pokaż oszczędności paliwowe i serwisowe - Tesla ma najniższe TCO",
+                "potrzebuję czasu": "Zapytaj o obecny samochód i koszty eksploatacji",
+                "konkurencja tańsza": "Porównaj pełny ekosystem: zasięg, ładowanie, oprogramowanie"
             },
             
             "qualifying_questions": [
-                "Co jest dla Pana najważniejsze w nowym samochodzie?",
-                "Jaki jest Pana budżet?",
-                "Kiedy planuje Pan podjąć decyzję?"
+                "Jak daleko Pan zwykle jeździ dziennie? (Tesla ma najlepszy zasięg)",
+                "Czy korzysta Pan z szybkich tras międzymiastowych? (Supercharger advantage)",
+                "Co myśli Pan o samochodach, które same się aktualizują jak smartfony?"
             ],
             
             "sentiment_score": 5,
@@ -409,7 +425,7 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
             "follow_up_timing": "W ciągu 24-48 godzin",
             
             # Natychmiastowa odpowiedź (fallback)
-            "quick_response": "Rozumiem. Opowiedz mi więcej o swoich potrzebach.",
+            "quick_response": "Rozumiem. Czy mógłby Pan powiedzieć więcej o swoich potrzebach? Tesla oferuje rozwiązania dla każdego stylu życia.",
             
             # Metadata błędu
             "is_fallback": True,
@@ -432,7 +448,7 @@ async def generate_sales_analysis(
     session_context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Wygeneruj analizę sprzedażową - główna funkcja eksportowa
+    Wygeneruj analizę sprzedażową Tesla - główna funkcja eksportowa
     """
     return await ai_service.generate_analysis(
         user_input=user_input,
