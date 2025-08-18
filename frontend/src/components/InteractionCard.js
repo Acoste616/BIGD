@@ -3,6 +3,7 @@
  * Wyróżnia quick_response dla natychmiastowego użycia przez sprzedawcę
  */
 import React, { useState } from 'react';
+import { useInteractionFeedback } from '../hooks/useInteractionFeedback';
 import {
   Card,
   CardContent,
@@ -35,7 +36,11 @@ import {
   Assessment as AssessmentIcon,
   QuestionAnswer as QuestionAnswerIcon,
   Lightbulb as LightbulbIcon,
-  SupportAgent as SupportAgentIcon
+  SupportAgent as SupportAgentIcon,
+  ThumbUpOffAlt as ThumbUpOffAltIcon,
+  ThumbDownOffAlt as ThumbDownOffAltIcon,
+  ThumbUpAlt as ThumbUpAltIcon,
+  ThumbDownAlt as ThumbDownAltIcon
 } from '@mui/icons-material';
 
 // Mapowanie pilności na kolory
@@ -60,6 +65,16 @@ const InteractionCard = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [copiedQuickResponse, setCopiedQuickResponse] = useState(false);
+  
+  // Hook do zarządzania feedback dla tej interakcji
+  const { 
+    isLoading: isFeedbackLoading, 
+    submittedRating, 
+    canVote, 
+    isPositiveVote, 
+    isNegativeVote, 
+    submitFeedback 
+  } = useInteractionFeedback(interaction?.id);
 
   if (!interaction) {
     return null;
@@ -244,6 +259,65 @@ const InteractionCard = ({
             )}
           </Box>
         )}
+
+        {/* FEEDBACK SECTION - Pętla Informacji Zwrotnej */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'flex-end', 
+          p: 1, 
+          gap: 1,
+          borderTop: '1px solid',
+          borderTopColor: 'divider',
+          mt: 2,
+          pt: 2
+        }}>
+          {submittedRating ? (
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
+              Dziękujemy za ocenę! 
+              {isPositiveVote && ' 👍'} 
+              {isNegativeVote && ' 👎'}
+            </Typography>
+          ) : (
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
+              Czy ta sugestia była pomocna?
+            </Typography>
+          )}
+          
+          <Tooltip title="Pomocna sugestia">
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => submitFeedback(1)}
+                disabled={isFeedbackLoading || !canVote}
+                color={isPositiveVote ? 'success' : 'default'}
+                sx={{ 
+                  border: isPositiveVote ? '2px solid' : '1px solid transparent',
+                  borderColor: isPositiveVote ? 'success.main' : 'transparent'
+                }}
+              >
+                {isPositiveVote ? <ThumbUpAltIcon /> : <ThumbUpOffAltIcon />}
+              </IconButton>
+            </span>
+          </Tooltip>
+          
+          <Tooltip title="Niepomocna sugestia">
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => submitFeedback(-1)}
+                disabled={isFeedbackLoading || !canVote}
+                color={isNegativeVote ? 'error' : 'default'}
+                sx={{ 
+                  border: isNegativeVote ? '2px solid' : '1px solid transparent',
+                  borderColor: isNegativeVote ? 'error.main' : 'transparent'
+                }}
+              >
+                {isNegativeVote ? <ThumbDownAltIcon /> : <ThumbDownOffAltIcon />}
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Box>
 
         {/* SUGGESTED QUESTIONS - pytania pogłębiające (nowa funkcja) */}
         {aiResponse.suggested_questions?.length > 0 && (

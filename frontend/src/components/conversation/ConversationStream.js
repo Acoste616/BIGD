@@ -34,6 +34,7 @@ import { createInteraction } from '../../services/interactionsApi';
 import { createClient } from '../../services/clientsApi';
 import { createSession } from '../../services/sessionsApi';
 
+
 const ConversationStream = ({ 
   currentClientId,
   currentSessionId,
@@ -172,6 +173,20 @@ const ConversationStream = ({
     }
   };
 
+  // Handler dla obsługi klawisza Enter w formularzu
+  const handleKeyDown = (event) => {
+    // Sprawdź, czy naciśnięto Enter i czy NIE wciśnięto Shift
+    if (event.key === 'Enter' && !event.shiftKey) {
+      // Zapobiegaj domyślnej akcji (np. dodaniu nowej linii)
+      event.preventDefault();
+      
+      // Wywołaj istniejącą logikę wysyłania
+      if (!isSubmitting && inputValue.trim()) {
+        handleSubmit(event);
+      }
+    }
+  };
+
   return (
     <Box 
       sx={{ 
@@ -290,6 +305,7 @@ const ConversationStream = ({
               placeholder="Describe the customer situation, their questions, objections, or any sales challenge..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
               disabled={isSubmitting}
               variant="outlined"
               size="small"

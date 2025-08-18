@@ -52,9 +52,9 @@ export const createSession = async (clientId, sessionData) => {
   }
   try {
     // CRITICAL FIX: Use the correct, nested endpoint.
-    const response = await apiClient.post(`/clients/${clientId}/sessions/`, sessionData);
-    console.log('✅ Sesja utworzona pomyślnie:', response.data);
-    return response.data;
+    const session = await apiClient.post(`/clients/${clientId}/sessions/`, sessionData);
+    console.log('✅ Sesja utworzona pomyślnie:', session);
+    return session;
   } catch (error) {
     console.error(`❌ Błąd podczas tworzenia sesji dla klienta ${clientId}:`, error.response?.data || error.message);
     // Re-throw the error to be handled by the component.

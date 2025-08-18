@@ -1,0 +1,280 @@
+
+{
+
+  "knowledge_entries": [
+
+    {
+
+      "id": "BEHAVIORAL_INDICATOR_HESITATION_001",
+
+      "type": "behavioral_indicator",
+
+      "title": "Fraza: 'Jeszcze się zastanawiam' = niepewność + potrzeba dodatkowej walidacji",
+
+      "content": "Gdy klient mówi 'jeszcze się zastanawiam' lub 'muszę to przemyśleć', sygnalizuje niepewność, ale nie odrzuca oferty. Stan mentalny: wahanie między chęcią a obawą. Reakcja: zadaj pytanie SPIN-style: 'Co konkretnie budzi Pana wątpliwości?' Następnie użyj techniki FUD-Buster: zrozum, skonfrontuj z faktami, pokaż dowód.",
+
+      "tags": ["hesitation", "niepewnosc", "spin_questions", "fud_buster"],
+
+      "archetype_filter": ["niezdecydowany_odkrywca", "pragmatyczny_analityk"],
+
+      "source": "Atlassian 06/2025; HubSpot 04/2025; ActiveCampaign 11/2024",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "BEHAVIORAL_INDICATOR_SPOUSE_001",
+
+      "type": "behavioral_indicator",
+
+      "title": "Fraza: 'Żona nie jest przekonana' = przeniesienie odpowiedzialności + ukryty budżet",
+
+      "content": "Wyrażenia typu 'muszę zapytać żonę/męża' często maskują prawdziwą obiekcję (budżet, autorytet, strach przed decyzją). Stan mentalny: poszukiwanie wymówki lub rzeczywista potrzeba uzgodnienia. Reakcja: 'Rozumiem, jakie konkretnie kwestie martwią Panią żonę?' Następnie zaproponuj materiały dla współmałżonka lub trójstronne spotkanie.",
+
+      "tags": ["spouse_objection", "decision_making", "hidden_objection", "authority"],
+
+      "archetype_filter": ["straznik_rodziny", "pragmatyczny_analityk"],
+
+      "source": "CallCriteria 05/2025; Atlassian 06/2025",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "BEHAVIORAL_INDICATOR_PRICING_001",
+
+      "type": "behavioral_indicator",
+
+      "title": "Pytanie o cenę bez kontekstu = sygnał zainteresowania lub leniwa kwalifikacja",
+
+      "content": "Pytanie 'Ile to kosztuje?' na początku rozmowy może oznaczać: genuine interest (porównują opcje) lub brush-off (chcą szybko zakończyć). Wskaźnik: ton głosu i kolejne pytania. Reakcja: 'Świetne pytanie. Żeby dać Panu precyzyjną kalkulację, powiedz mi: jaki przebieg robi Pan miesięcznie?' (SPIN - Situation).",
+
+      "tags": ["pricing_question", "early_objection", "qualification", "buying_signal"],
+
+      "archetype_filter": ["pragmatyczny_analityk", "business_optimizer"],
+
+      "source": "Bardeen 08/2024; Yesware 08/2025; HubSpot 04/2025",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "BEHAVIORAL_INDICATOR_TIMELINE_001",
+
+      "type": "behavioral_indicator",
+
+      "title": "Pytanie: 'Kiedy moglibyśmy dostać samochód?' = wysoki sygnał zakupowy",
+
+      "content": "Pytania o timeline implementacji/dostawy to jeden z najsilniejszych buying signals. Klient mentalnie przeszedł z 'czy kupić' na 'kiedy kupić'. Stan mentalny: ready to close. Reakcja: natychmiast przejdź do assumptive close: 'W jakiej konfiguracji widzisz dla siebie to auto?' i rozpocznij proces rezerwacji.",
+
+      "tags": ["timeline_questions", "buying_signal", "implementation", "assumptive_close"],
+
+      "archetype_filter": ["dynamiczny_entuzjasta", "business_optimizer"],
+
+      "source": "HubSpot 04/2025; Qwilr 01/2024; Boomerang.ai 12/2024",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "BEHAVIORAL_INDICATOR_COMPARISON_001",
+
+      "type": "behavioral_indicator",
+
+      "title": "Fraza: 'Jak to się ma do [konkurent]?' = aktywna faza porównywania",
+
+      "content": "Pytania porównawcze wskazują na shortlist i advanced stage w buyer journey. Klient ma knowledge i porównuje opcje. Stan mentalny: educated buyer w fazie decision. Reakcja: nie atakuj konkurencji, podkreśl unique value prop Tesli: 'Świetnie, że porównujesz. W czym konkretnie [konkurent] Cię rozczarowuje?' Następnie pokaż przewagę Tesla w tym obszarze.",
+
+      "tags": ["competitive_comparison", "shortlist", "educated_buyer", "differentiation"],
+
+      "archetype_filter": ["techniczny_sceptyk", "pragmatyczny_analityk"],
+
+      "source": "GetBoomerang.ai 12/2024; Qwilr 01/2024",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "QUESTION_PATTERN_SAFETY_001",
+
+      "type": "question_pattern",
+
+      "title": "Kategoria: Pytania o bezpieczeństwo → Archetyp 'Strażnik Rodziny'",
+
+      "content": "Pytania typu 'Jak bezpieczna jest Tesla?', 'Co z airbagami?', 'Czy bateria może wybuchnąć?' pochodzą od Strażników Rodziny. Psychologia: odpowiedzialność za najbliższych > performance lub oszczędności. Reakcja: rozpocznij od 5-star NHTSA, potem konkretne dane (Tesla ma najniższe prawdopodobieństwo obrażeń ze wszystkich testowanych aut).",
+
+      "tags": ["safety_questions", "nhtsa", "family_protection", "risk_aversion"],
+
+      "archetype_filter": ["straznik_rodziny"],
+
+      "source": "Tesla Safety Report 2024; NHTSA database",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "QUESTION_PATTERN_TECHNOLOGY_001",
+
+      "type": "question_pattern",
+
+      "title": "Kategoria: Pytania techniczne → Archetyp 'Techniczny Sceptyk'",
+
+      "content": "Pytania o hardware/software ('Jaki chip ma FSD?', 'Ile razy na sekundę updatuje się autopilot?') pochodzą od Technicznych Sceptyków. Psychologia: potrzeba zrozumienia before trust. Reakcja: dawaj konkretne specyfikacje, potem wyjaśnij korzyści: 'Hardware 4.0 ma 3× więcej mocy obliczeniowej, co oznacza szybsze reakcje w trudnych sytuacjach'.",
+
+      "tags": ["technical_questions", "specifications", "fsd", "hardware"],
+
+      "archetype_filter": ["techniczny_sceptyk", "wizjoner"],
+
+      "source": "Tesla AI Day presentations; Tech specs",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "QUESTION_PATTERN_STATUS_001",
+
+      "type": "question_pattern",
+
+      "title": "Kategoria: Pytania o prestiż/status → Archetyp 'Dynamiczny Entuzjasta'",
+
+      "content": "Pytania o performance ('Ile robi 0-100?'), ekskluzywność ('Czy można zamówić w tym kolorze?') lub comparison z luksusowymi markami pochodzą od Dynamicznych Entuzjastów. Psychologia: samorealizacja + social signaling. Reakcja: emphasize unikalne features (Ludicrous mode, Over-the-air updates) i membership w exclusive community.",
+
+      "tags": ["status_questions", "performance", "exclusivity", "luxury_comparison"],
+
+      "archetype_filter": ["dynamiczny_entuzjasta", "wizjoner"],
+
+      "source": "Tesla Performance specs; Luxury car comparisons",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "QUESTION_PATTERN_FINANCIAL_001",
+
+      "type": "question_pattern",
+
+      "title": "Kategoria: Pytania o ROI/koszty → Archetyp 'Business Optimizer'",
+
+      "content": "Pytania o TCO ('Ile kosztuje serwis?'), taxes ('Jak z odliczeniem VAT?'), depreciation pochodzą od Business Optimizers. Psychologia: data-driven decisions, long-term value. Reakcja: prezentuj spreadsheets, case studies, konkretne kalkulacje: '3-letnie TCO Tesla to 180k zł vs BMW 240k zł - różnica 60k zł na Pana korzyść'.",
+
+      "tags": ["roi_questions", "tco", "tax_benefits", "business_case"],
+
+      "archetype_filter": ["business_optimizer", "pragmatyczny_analityk"],
+
+      "source": "Various TCO studies; Tax regulations",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "SALES_NARRATIVE_HERO_JOURNEY_001",
+
+      "type": "sales_narrative",
+
+      "title": "Szablon: Hero's Journey dla Tesla - klient jako bohater transformacji",
+
+      "content": "Struktura: 1) Ordinary World (obecna sytuacja z autem spalinowym), 2) Call to Adventure (rosnące ceny paliwa/regulacje), 3) Mentor (sprzedawca Tesla), 4) Tests (jazda próbna, kalkulacje), 5) Reward (transformacja lifestyle'u). Przykład: 'Wyobraź sobie siebie za rok - tankowujesz w domu za 30 zł zamiast 300 zł na stacji, a auto dostaje nowe funkcje przez Wi-Fi'.",
+
+      "tags": ["hero_journey", "transformation", "lifestyle_change", "future_pacing"],
+
+      "archetype_filter": ["wizjoner", "dynamiczny_entuzjasta"],
+
+      "source": "StorytellingEdge 03/2025; Campbell Hero's Journey; Reedsy 11/2024",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "SALES_NARRATIVE_BEFORE_AFTER_BRIDGE_001",
+
+      "type": "sales_narrative",
+
+      "title": "Szablon: Before-After-Bridge - transformacja przez Tesla",
+
+      "content": "Before: 'Dzisiaj tracisz 4000 zł rocznie na paliwo + 2h miesięcznie na stacjach'. After: 'Wyobraź sobie: ładujesz w nocy za 1500 zł rocznie, a auto updatuje się samo'. Bridge: 'Tesla to jedyna droga z punktu A do B - pokażę Ci konkretnie jak'. Używaj w emailach, landing pages, prezentacjach.",
+
+      "tags": ["before_after_bridge", "transformation", "cost_savings", "convenience"],
+
+      "archetype_filter": ["pragmatyczny_analityk", "business_optimizer"],
+
+      "source": "GMass 12/2023; Simplified AI 11/2023; Gen Furukawa LinkedIn 04/2024",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "SALES_NARRATIVE_PROBLEM_SOLUTION_001",
+
+      "type": "sales_narrative",
+
+      "title": "Szablon: Problem-Solution-Result dla case studies",
+
+      "content": "1) Situation: klient podobny do prospekta, 2) Problem: konkretny pain point, 3) Solution: jak Tesla rozwiązała problem, 4) Result: wymierne korzyści. Przykład: 'Firma logistyczna XYZ płaciła 50k zł miesięcznie za paliwo. Przeszli na flotę Tesla. Dziś płacą 15k zł za prąd + mają lepszy wizerunek u klientów'. Używaj przy obiekcjach dotyczących kosztów.",
+
+      "tags": ["case_study", "social_proof", "cost_reduction", "corporate"],
+
+      "archetype_filter": ["business_optimizer", "straznik_rodziny"],
+
+      "source": "VentureVideos 11/2021; Problem-Solution Selling examples",
+
+      "related_ids": []
+
+    },
+
+    {
+
+      "id": "SALES_NARRATIVE_FEAR_REGRET_001",
+
+      "type": "sales_narrative",
+
+      "title": "Szablon: Fear-Regret-Relief dla urgency",
+
+      "content": "Fear: 'Ceny paliwa rosną 15% rocznie, a nowe regulacje UE wymuszą opłaty za emisję CO2'. Regret: 'Za 2 lata będziesz żałować, że nie kupiłeś dziś - Tesla będzie droższa, dotacje się skończą'. Relief: 'Ale jeśli zdecydujesz się dziś, blokujesz obecną cenę i 40k zł dotacji'. Używaj przy wahających się klientach na końcu sales cycle.",
+
+      "tags": ["fear_appeal", "urgency", "loss_aversion", "scarcity"],
+
+      "archetype_filter": ["niezdecydowany_odkrywca", "pragmatyczny_analityk"],
+
+      "source": "Yesware sales closing techniques; FOMO in sales psychology",
+
+      "related_ids": []
+
+    }
+
+  ],
+
+  "metadata": {
+
+    "created_date": "2025-08-18T15:26:54.123456",
+
+    "total_entries": 13,
+
+    "categories": ["behavioral_indicator", "question_pattern", "sales_narrative"],
+
+    "description": "Lingwistyczne wskaźniki, kategorie pytań i szablony narracyjne dla AI Co-Pilota Tesla"
+
+  }
+
+}

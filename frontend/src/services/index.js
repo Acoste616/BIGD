@@ -73,8 +73,14 @@ export {
   formatSearchResults
 } from './knowledgeApi';
 
+// Eksport funkcji modułu Feedback
+export {
+  submitInteractionFeedback,
+  validateFeedbackRating,
+  formatFeedbackData
+} from './feedbackApi';
+
 // Przyszłe moduły API (placeholder)
-// export * from './feedbackApi';
 // export * from './authApi';
 
 /**
