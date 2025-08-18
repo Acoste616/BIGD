@@ -3,7 +3,7 @@ AI Service - Integracja z modelem językowym (LLM) poprzez Ollama
 """
 import json
 import asyncio
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, cast
 from datetime import datetime
 import logging
 
@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from app.schemas.interaction import InteractionResponse
 from app.models.domain import Client as DomainClient, Session, Interaction
 from app.core.config import settings
+from .qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,14 @@ class AIService:
     - Model: gpt-oss:120b
     """
     
-    def __init__(self):
+    def __init__(self, qdrant_service: QdrantService):
+        """
+        Inicjalizacja AI Service z integracją bazy wiedzy (RAG)
+        
+        Args:
+            qdrant_service: Instancja serwisu Qdrant do pobierania wiedzy kontekstowej
+        """
+        self.qdrant_service = qdrant_service
         self.model_name = "gpt-oss:120b"  # POPRAWKA: Dwukropek zamiast myślnik
         self.max_retries = 3
         self.timeout_seconds = 60
@@ -45,7 +53,7 @@ class AIService:
                 host="https://ollama.com",
                 headers={'Authorization': f'Bearer {settings.OLLAMA_API_KEY}'}
             )
-            logger.info("✅ Tesla Co-Pilot AI został pomyślnie skonfigurowany.")
+            logger.info("✅ Tesla Co-Pilot AI został pomyślnie skonfigurowany z integracją RAG.")
         except Exception as e:
             logger.error(f"❌ KRYTYCZNY BŁĄD: Nie można skonfigurować Tesla Co-Pilot AI: {e}")
             self.client = None
@@ -75,11 +83,59 @@ class AIService:
         start_time = datetime.now()
         
         try:
-            # Zbuduj prompt systemowy
+            # === POCZĄTEK NOWEJ LOGIKI RAG ===
+            logger.info("🔍 RAG: Rozpoczynam pobieranie wiedzy kontekstowej z Qdrant")
+            
+            # Krok 1: Pobierz relevantną wiedzę z Qdrant
+            relevant_knowledge = []
+            try:
+                client_archetype = client_profile.get("archetype")
+                relevant_knowledge = await asyncio.to_thread(
+                    self.qdrant_service.search_knowledge,
+                    query=user_input,
+                    archetype=client_archetype,  # type: ignore
+                    limit=3  # Pobieramy 3 najbardziej trafne wyniki
+                )
+                logger.info(f"✅ RAG: Znaleziono {len(relevant_knowledge)} relevantnych wskazówek")
+                
+                # Loguj trafność wyników
+                for i, nugget in enumerate(relevant_knowledge):
+                    score = nugget.get('score', 0)
+                    title = nugget.get('title', 'Bez tytułu')[:50]
+                    logger.debug(f"  #{i+1}: {title}... (score: {score:.3f})")
+                    
+            except Exception as e:
+                # W razie błędu Qdrant, kontynuujemy bez dodatkowej wiedzy
+                logger.warning(f"⚠️ RAG: Błąd podczas wyszukiwania w Qdrant: {e}")
+                relevant_knowledge = []
+
+            # Krok 2: Sformatuj pobraną wiedzę do czytelnej formy dla LLM
+            knowledge_context = "BRAK DODATKOWEGO KONTEKSTU Z BAZY WIEDZY."
+            if relevant_knowledge:
+                formatted_nuggets = []
+                for i, nugget in enumerate(relevant_knowledge):
+                    title = nugget.get("title", "Brak tytułu")
+                    content = nugget.get("content", "Brak treści")
+                    score = nugget.get("score", 0)
+                    knowledge_type = nugget.get("knowledge_type", "general")
+                    
+                    formatted_nuggets.append(
+                        f"{i+1}. [{knowledge_type.upper()}] {title}\n"
+                        f"   Treść: {content}\n"
+                        f"   Trafność: {score:.1%}"
+                    )
+                
+                knowledge_context = "\n---\n".join(formatted_nuggets)
+                logger.info(f"📚 RAG: Kontekst wiedzy przygotowany ({len(knowledge_context)} znaków)")
+                
+            # === KONIEC NOWEJ LOGIKI RAG ===
+
+            # Krok 3: Zbuduj wzbogacony prompt systemowy (z wiedzą z RAG)
             system_prompt = self._build_system_prompt(
                 client_profile=client_profile,
                 session_history=session_history,
-                session_context=session_context or {}
+                session_context=session_context or {},
+                knowledge_context=knowledge_context  # NOWY PARAMETR
             )
             
             # Zbuduj prompt użytkownika
@@ -120,7 +176,8 @@ class AIService:
         self,
         client_profile: Dict[str, Any],
         session_history: List[Dict[str, Any]],
-        session_context: Dict[str, Any]
+        session_context: Dict[str, Any],
+        knowledge_context: str = "BRAK DODATKOWEGO KONTEKSTU Z BAZY WIEDZY."
     ) -> str:
         """
         Zbuduj dynamiczny prompt systemowy dla LLM - NOWA WERSJA PRO-TESLA
@@ -149,8 +206,23 @@ class AIService:
         system_prompt += """Twoja osobowość to połączenie Elona Muska (wizjonerstwo, odwaga) i Steve'a Jobsa (obsesja na punkcie produktu i doświadczenia użytkownika). Jesteś pasjonatem, ekspertem i strategiem. Twój ton jest pewny siebie, profesjonalny i inspirujący.
 
 """
+
+        # === WARSTWA 5: KONTEKST WIEDZY Z BAZY RAG (KLUCZOWE!) ===
+        system_prompt += f"""
+=== SPECJALISTYCZNA WIEDZA Z BAZY DANYCH ===
+Na podstawie bieżącej sytuacji, oto najważniejsze informacje z naszej bazy wiedzy, które MUSISZ uwzględnić w swojej analizie i rekomendacjach:
+
+{knowledge_context}
+
+INSTRUKCJE DOTYCZĄCE WIEDZY:
+- Wykorzystaj powyższe informacje do stworzenia precyzyjnych, merytorycznie uzasadnionych odpowiedzi
+- Jeśli wiedza zawiera konkretne dane (np. limity podatkowe, programy dopłat), użyj ich w swoich argumentach
+- Odwołuj się do tych informacji naturalnie, nie wspominając że pochodzą z "bazy danych"
+- Traktuj tę wiedzę jako swoje własne, eksperckie kompetencje
+
+"""
         
-        # === WARSTWA 5: KONTEKST ROZMOWY (Dynamiczna część) ===
+        # === WARSTWA 6: KONTEKST ROZMOWY (Dynamiczna część) ===
         # Dodaj profil klienta
         if client_profile:
             system_prompt += f"""
@@ -188,7 +260,7 @@ HISTORIA SESJI (ostatnie interakcje):
 
 """
         
-        # === WARSTWA 6: NARZĘDZIA ANALITYCZNE I FORMAT WYJŚCIOWY ===
+        # === WARSTWA 7: NARZĘDZIA ANALITYCZNE I FORMAT WYJŚCIOWY ===
         # Instrukcje wyjściowe z nowymi zasadami  
         system_prompt += """
 TWOJE NARZĘDZIA ANALITYCZNE (Frameworki):
@@ -329,18 +401,25 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
         if self.client is None:
             raise ConnectionError("Klient Ollama nie został poprawnie zainicjalizowany.")
 
-        return self.client.chat(  # <-- KLUCZOWA ZMIANA: używamy instancji klienta
+        response = self.client.chat(  # <-- KLUCZOWA ZMIANA: używamy instancji klienta
             model=self.model_name, # Używamy self.model_name (gpt-oss:120b)
             messages=[
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': user_prompt}
-            ],
-            options={
-                'temperature': 0.7,
-                'top_p': 0.9,
-                'max_tokens': 2048
-            }
-        )['message']['content']
+            ]
+        )
+        
+        # Ollama może zwrócić różne struktury odpowiedzi
+        if isinstance(response, dict):
+            if 'message' in response and 'content' in response['message']:
+                return response['message']['content']
+            elif 'content' in response:
+                return response['content']
+        elif isinstance(response, str):
+            return response
+            
+        # Fallback - spróbuj przekonwertować na string
+        return str(response)
     
     def _parse_llm_response(self, llm_response: str) -> Dict[str, Any]:
         """
@@ -436,8 +515,11 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
         }
 
 
-# Singleton instance
-ai_service = AIService()
+# Import Qdrant service for singleton creation
+from .qdrant_service import qdrant_service
+
+# Singleton instance z integracją RAG
+ai_service = AIService(qdrant_service=qdrant_service)
 
 
 # Helper funkcje dla łatwego importu
@@ -448,7 +530,7 @@ async def generate_sales_analysis(
     session_context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Wygeneruj analizę sprzedażową Tesla - główna funkcja eksportowa
+    Wygeneruj analizę sprzedażową Tesla - główna funkcja eksportowa z integracją RAG
     """
     return await ai_service.generate_analysis(
         user_input=user_input,

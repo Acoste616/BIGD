@@ -126,6 +126,67 @@ class QdrantService:
             logger.error(f"Błąd podczas dodawania wiedzy: {e}")
             raise
     
+    def add_many_knowledge_points(self, knowledge_items: List[Dict[str, Any]]) -> List[str]:
+        """
+        Masowo dodaje wiele wskazówek do bazy wiedzy w jednej operacji
+        
+        Args:
+            knowledge_items: Lista obiektów wiedzy do dodania
+            
+        Returns:
+            List[str]: Lista ID utworzonych punktów
+        """
+        try:
+            if not knowledge_items:
+                return []
+            
+            logger.info(f"Masowe dodawanie {len(knowledge_items)} wskazówek do Qdrant")
+            
+            points = []
+            created_ids = []
+            
+            for knowledge_data in knowledge_items:
+                # Wygeneruj embedding dla treści
+                vector = self.encoder.encode(knowledge_data["content"]).tolist()
+                
+                # Wygeneruj unikatowy ID
+                point_id = str(uuid.uuid4())
+                created_ids.append(point_id)
+                
+                # Przygotuj metadane
+                payload = {
+                    "content": knowledge_data["content"],
+                    "title": knowledge_data.get("title") or f"Wskazówka {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    "knowledge_type": knowledge_data.get("knowledge_type", "general"),
+                    "archetype": knowledge_data.get("archetype"),
+                    "tags": knowledge_data.get("tags", []),
+                    "source": knowledge_data.get("source", "import"),
+                    "created_at": datetime.utcnow().isoformat(),
+                    "content_length": len(knowledge_data["content"]),
+                    "embedding_model": "paraphrase-multilingual-MiniLM-L12-v2"
+                }
+                
+                # Utwórz punkt w Qdrant
+                point = PointStruct(
+                    id=point_id,
+                    vector=vector,
+                    payload=payload
+                )
+                points.append(point)
+            
+            # Wykonaj masowy upsert do Qdrant (jedna operacja)
+            self.client.upsert(
+                collection_name=self.collection_name,
+                points=points
+            )
+            
+            logger.info(f"Pomyślnie dodano {len(points)} wskazówek do Qdrant w jednej operacji")
+            return created_ids
+            
+        except Exception as e:
+            logger.error(f"Błąd podczas masowego dodawania wiedzy: {e}")
+            raise
+    
     def get_all_knowledge(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Pobiera wszystkie wskazówki z bazy wiedzy
@@ -202,8 +263,8 @@ class QdrantService:
         self, 
         query: str, 
         limit: int = 5,
-        knowledge_type: str = None,
-        archetype: str = None
+        knowledge_type: Optional[str] = None,
+        archetype: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Wyszukuje wskazówki podobne do zapytania

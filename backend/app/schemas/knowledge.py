@@ -21,12 +21,12 @@ class KnowledgeType(str, Enum):
     TECHNICAL = "technical"
 
 
-class SourceType(str, Enum):
-    """Źródła wiedzy"""
-    MANUAL = "manual"
-    IMPORT = "import"
-    AI_GENERATED = "ai_generated"
-    FEEDBACK = "feedback"
+# class SourceType(str, Enum):
+#     """Źródła wiedzy"""
+#     MANUAL = "manual"
+#     IMPORT = "import"
+#     AI_GENERATED = "ai_generated"
+#     FEEDBACK = "feedback"
 
 
 class KnowledgeBase(BaseModel):
@@ -57,8 +57,9 @@ class KnowledgeBase(BaseModel):
         description="Lista tagów do kategoryzacji",
         example=["cena", "zastrzeżenia", "negocjacje"]
     )
-    source: SourceType = Field(
-        SourceType.MANUAL,
+    source: Optional[str] = Field(
+        None,
+        max_length=255,
         description="Źródło wiedzy"
     )
 
@@ -234,7 +235,6 @@ class KnowledgeErrorResponse(BaseModel):
 # Export schemas for easier imports
 __all__ = [
     "KnowledgeType",
-    "SourceType", 
     "KnowledgeBase",
     "KnowledgeCreate",
     "KnowledgeUpdate",

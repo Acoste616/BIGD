@@ -133,6 +133,127 @@ export const bulkCreateKnowledge = async (knowledgeItems) => {
 };
 
 /**
+ * Import wiedzy z pliku JSON (knowledge_base_pl.json format)
+ * @param {File} jsonFile - Plik JSON do importu
+ * @param {Function} progressCallback - Callback do raportowania postępu
+ * @returns {Promise<Object>} Wynik operacji importu z estatystykami
+ */
+export const bulkImportFromJSON = async (jsonFile, progressCallback = null) => {
+  try {
+    // Sprawdź czy to plik JSON
+    if (!jsonFile.name.toLowerCase().endsWith('.json')) {
+      throw new Error('Plik musi mieć rozszerzenie .json');
+    }
+    
+    if (jsonFile.size > 10 * 1024 * 1024) { // 10MB limit
+      throw new Error('Plik nie może przekraczać 10MB');
+    }
+    
+    // Wczytaj zawartość pliku
+    const fileContent = await readFileAsText(jsonFile);
+    let jsonData;
+    
+    try {
+      jsonData = JSON.parse(fileContent);
+    } catch (parseError) {
+      throw new Error('Nieprawidłowy format JSON: ' + parseError.message);
+    }
+    
+    // Konwertuj różne formaty JSON do standardowego formatu
+    const normalizedItems = normalizeJSONData(jsonData);
+    
+    if (normalizedItems.length === 0) {
+      throw new Error('Plik nie zawiera żadnych prawidłowych wpisów');
+    }
+    
+    // Raportuj postęp
+    if (progressCallback) {
+      progressCallback({
+        phase: 'parsing',
+        message: `Znaleziono ${normalizedItems.length} wpisów do importu`,
+        itemsFound: normalizedItems.length
+      });
+    }
+    
+    // Podziel na batche (max 50 na raz)
+    const batchSize = 50;
+    const batches = [];
+    for (let i = 0; i < normalizedItems.length; i += batchSize) {
+      batches.push(normalizedItems.slice(i, i + batchSize));
+    }
+    
+    // Importuj batch po batch
+    let totalImported = 0;
+    let totalErrors = 0;
+    const results = [];
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      
+      if (progressCallback) {
+        progressCallback({
+          phase: 'importing',
+          message: `Importuję batch ${i + 1}/${batches.length} (${batch.length} elementów)`,
+          currentBatch: i + 1,
+          totalBatches: batches.length,
+          itemsProcessed: totalImported
+        });
+      }
+      
+      try {
+        const result = await bulkCreateKnowledge(batch);
+        results.push(result);
+        totalImported += batch.length;
+        
+        // Krótkia przerwa między batchami żeby nie przeciążać serwera
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+      } catch (batchError) {
+        totalErrors += batch.length;
+        console.error(`Błąd w batch ${i + 1}:`, batchError);
+        results.push({ 
+          error: batchError.message,
+          batch: i + 1,
+          itemsInBatch: batch.length
+        });
+      }
+    }
+    
+    // Finalne raportowanie
+    if (progressCallback) {
+      progressCallback({
+        phase: 'completed',
+        message: `Import zakończony. Zaimportowano: ${totalImported}, błędy: ${totalErrors}`,
+        totalImported,
+        totalErrors,
+        totalItems: normalizedItems.length
+      });
+    }
+    
+    return {
+      success: true,
+      totalItems: normalizedItems.length,
+      totalImported,
+      totalErrors,
+      results,
+      summary: `Pomyślnie zaimportowano ${totalImported} z ${normalizedItems.length} elementów. Błędów: ${totalErrors}`
+    };
+    
+  } catch (error) {
+    if (progressCallback) {
+      progressCallback({
+        phase: 'error',
+        message: `Błąd importu: ${error.message}`,
+        error: error.message
+      });
+    }
+    throw error;
+  }
+};
+
+/**
  * Sprawdza status połączenia z Qdrant
  * @returns {Promise<Object>} Status health check
  */
@@ -355,4 +476,153 @@ const getRelevanceLevel = (score) => {
   if (score >= 0.6) return 'Średnie';
   if (score >= 0.4) return 'Niskie';
   return 'Bardzo niskie';
+};
+
+/**
+ * Czyta plik jako tekst (Promise wrapper dla FileReader)
+ * @param {File} file - Plik do wczytania
+ * @returns {Promise<string>} Zawartość pliku jako tekst
+ */
+const readFileAsText = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(new Error('Błąd podczas wczytywania pliku: ' + e.target.error));
+    reader.readAsText(file, 'utf-8');
+  });
+};
+
+/**
+ * Normalizuje różne formaty JSON do standardowego formatu API
+ * @param {any} jsonData - Surowe dane JSON
+ * @returns {Array} Tablica znormalizowanych obiektów wiedzy
+ */
+const normalizeJSONData = (jsonData) => {
+  const normalizedItems = [];
+  
+  // Funkcja do przetwarzania pojedynczego elementu
+  const processItem = (item) => {
+    // Sprawdź czy ma wymagane pola
+    if (!item.content || !item.title) {
+      console.warn('Pominięto element bez content lub title:', item.id || 'unknown');
+      return null;
+    }
+    
+    // Konwertuj format z pliku JSON do formatu API
+    const normalized = {
+      content: String(item.content).trim(),
+      title: String(item.title).trim(),
+      knowledge_type: mapKnowledgeType(item.type),
+      archetype: extractArchetype(item.archetype_filter),
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      source: item.source || 'import'
+    };
+    
+    return normalized;
+  };
+  
+  // Obsłuż różne struktury JSON
+  if (Array.isArray(jsonData)) {
+    // Prosta tablica obiektów
+    jsonData.forEach(item => {
+      const normalized = processItem(item);
+      if (normalized) normalizedItems.push(normalized);
+    });
+    
+  } else if (jsonData && typeof jsonData === 'object') {
+    // Obiekt z różnymi kluczami
+    Object.values(jsonData).forEach(section => {
+      if (Array.isArray(section)) {
+        // Sekcja z tablicą elementów
+        section.forEach(item => {
+          const normalized = processItem(item);
+          if (normalized) normalizedItems.push(normalized);
+        });
+      } else if (section && typeof section === 'object') {
+        // Zagnieżdżony obiekt z facts/tactics/knowledge_entries
+        if (section.facts && Array.isArray(section.facts)) {
+          section.facts.forEach(item => {
+            const normalized = processItem(item);
+            if (normalized) normalizedItems.push(normalized);
+          });
+        }
+        if (section.tactics && Array.isArray(section.tactics)) {
+          section.tactics.forEach(item => {
+            const normalized = processItem(item);
+            if (normalized) normalizedItems.push(normalized);
+          });
+        }
+        if (section.knowledge_entries && Array.isArray(section.knowledge_entries)) {
+          section.knowledge_entries.forEach(item => {
+            const normalized = processItem(item);
+            if (normalized) normalizedItems.push(normalized);
+          });
+        }
+      }
+    });
+  }
+  
+  return normalizedItems;
+};
+
+/**
+ * Mapuje typ wiedzy z pliku JSON do typu API
+ * @param {string} jsonType - Typ z pliku JSON
+ * @returns {string} Typ API
+ */
+const mapKnowledgeType = (jsonType) => {
+  const typeMapping = {
+    'accounting': 'pricing',
+    'sales_tactic': 'objection', 
+    'pricing': 'pricing',
+    'technical': 'technical',
+    'product': 'product',
+    'market': 'competition',
+    'psychology': 'general',
+    'psychometric_indicator': 'general',
+    'behavioral_indicator': 'general',
+    'question_pattern': 'general',
+    'sales_narrative': 'closing'
+  };
+  
+  return typeMapping[jsonType] || 'general';
+};
+
+/**
+ * Ekstraktuje archetyp z tablicy archetype_filter
+ * @param {Array} archetypeFilter - Tablica archetypów z pliku JSON
+ * @returns {string|null} Pierwszy dopasowany archetyp lub null
+ */
+const extractArchetype = (archetypeFilter) => {
+  if (!Array.isArray(archetypeFilter) || archetypeFilter.length === 0) {
+    return null;
+  }
+  
+  // Mapowanie archetypów z JSON do archetypów API
+  const archetypeMapping = {
+    'business_optimizer': 'analityk',
+    'pragmatyczny_analityk': 'analityk',
+    'data_driven_professional': 'analityk',
+    'straznik_rodziny': 'relacyjny',
+    'family_oriented': 'relacyjny',
+    'dynamiczny_entuzjasta': 'innowator',
+    'wizjoner': 'innowator',
+    'techniczny_sceptyk': 'ekspert',
+    'tech_enthusiast': 'ekspert',
+    'eko_entuzjasta': 'pragmatyk',
+    'eco_enthusiast': 'pragmatyk',
+    'lowca_okazji': 'analityk',
+    'niezdecydowany_odkrywca': 'konserwatywny'
+  };
+  
+  // Znajdź pierwszy dopasowany archetyp
+  for (const jsonArchetype of archetypeFilter) {
+    const mappedArchetype = archetypeMapping[jsonArchetype];
+    if (mappedArchetype) {
+      return mappedArchetype;
+    }
+  }
+  
+  // Jeśli nie ma dopasowania, zwróć pierwszy jako fallback
+  return archetypeFilter[0] || null;
 };

@@ -60,11 +60,11 @@ async def create_knowledge(knowledge_data: KnowledgeCreate):
         # Dodaj wiedzę do Qdrant
         point_id = qdrant_service.add_knowledge(
             content=knowledge_data.content,
-            title=knowledge_data.title,
+            title=knowledge_data.title or "Untitled",
             knowledge_type=knowledge_data.knowledge_type.value,
-            archetype=knowledge_data.archetype,
+            archetype=knowledge_data.archetype or "",
             tags=knowledge_data.tags,
-            source=knowledge_data.source.value
+            source=knowledge_data.source or "manual"
         )
         
         return KnowledgeResponse(
@@ -390,7 +390,7 @@ async def bulk_create_knowledge(bulk_data: KnowledgeBulkCreate):
     """
     📦 **Masowe dodawanie wskazówek**
     
-    Dodaje wiele wskazówek jednocześnie (maksymalnie 50).
+    Dodaje wiele wskazówek jednocześnie (maksymalnie 50) w jednej efektywnej operacji.
     
     **Parametry:**
     - **items**: Lista wskazówek do dodania (1-50 elementów)
@@ -398,40 +398,39 @@ async def bulk_create_knowledge(bulk_data: KnowledgeBulkCreate):
     try:
         logger.info(f"Masowe dodawanie {len(bulk_data.items)} wskazówek")
         
-        created_ids = []
-        errors = []
+        # === POCZĄTEK NOWEJ LOGIKI ===
+        # Konwertuj obiekty Pydantic na słowniki
+        knowledge_items = []
+        for knowledge_item in bulk_data.items:
+            item_dict = {
+                "content": knowledge_item.content,
+                "title": knowledge_item.title,
+                "knowledge_type": knowledge_item.knowledge_type.value,
+                "archetype": knowledge_item.archetype,
+                "tags": knowledge_item.tags,
+                "source": knowledge_item.source
+            }
+            knowledge_items.append(item_dict)
         
-        for idx, knowledge_item in enumerate(bulk_data.items):
-            try:
-                point_id = qdrant_service.add_knowledge(
-                    content=knowledge_item.content,
-                    title=knowledge_item.title,
-                    knowledge_type=knowledge_item.knowledge_type.value,
-                    archetype=knowledge_item.archetype,
-                    tags=knowledge_item.tags,
-                    source=knowledge_item.source.value
-                )
-                created_ids.append(point_id)
-                
-            except Exception as item_error:
-                errors.append({
-                    "index": idx,
-                    "title": knowledge_item.title,
-                    "error": str(item_error)
-                })
+        # Używamy nowej metody masowego dodawania (jedna operacja Qdrant)
+        created_ids = qdrant_service.add_many_knowledge_points(knowledge_items)
+        
+        success_message = f"Pomyślnie dodano {len(created_ids)} wskazówek do bazy wiedzy w jednej operacji."
+        logger.info(success_message)
         
         return KnowledgeBulkResult(
             success_count=len(created_ids),
-            error_count=len(errors),
+            error_count=0,
             created_ids=created_ids,
-            errors=errors
+            errors=[]
         )
+        # === KONIEC NOWEJ LOGIKI ===
         
     except Exception as e:
-        logger.error(f"Błąd podczas masowego dodawania: {e}")
+        logger.error(f"Błąd podczas masowego importu do Qdrant: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Nie udało się wykonać masowego dodawania: {str(e)}"
+            detail=f"Wystąpił błąd serwera podczas importu: {str(e)}"
         )
 
 
@@ -452,7 +451,9 @@ async def qdrant_health_check():
             status="error",
             collection_exists=False,
             collection_name=qdrant_service.collection_name,
-            error=str(e)
+            error=str(e),
+            qdrant_version=None,
+            collections_count=None
         )
 
 

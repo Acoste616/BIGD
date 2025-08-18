@@ -62,6 +62,7 @@ export {
   searchKnowledge,
   getKnowledgeStats,
   bulkCreateKnowledge,
+  bulkImportFromJSON,
   getQdrantHealth,
   getAvailableKnowledgeTypes,
   deleteAllKnowledge,

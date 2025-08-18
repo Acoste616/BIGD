@@ -55,7 +55,9 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Close as CloseIcon,
-  ContentCopy as ContentCopyIcon
+  ContentCopy as ContentCopyIcon,
+  Upload as UploadIcon,
+  FileUpload as FileUploadIcon
 } from '@mui/icons-material';
 
 import MainLayout from '../components/MainLayout';
@@ -68,7 +70,11 @@ import {
   useQdrantHealth,
   useKnowledgeForm
 } from '../hooks/useKnowledge';
-import { getLocalKnowledgeTypes, getAvailableKnowledgeArchetypes } from '../services';
+import { 
+  getLocalKnowledgeTypes, 
+  getAvailableKnowledgeArchetypes,
+  bulkImportFromJSON
+} from '../services';
 
 const KnowledgeAdmin = () => {
   // State dla UI
@@ -77,6 +83,13 @@ const KnowledgeAdmin = () => {
   const [showStats, setShowStats] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
   const [detailDialog, setDetailDialog] = useState({ open: false, item: null });
+  const [importDialog, setImportDialog] = useState({ 
+    open: false, 
+    importing: false,
+    progress: null,
+    results: null,
+    error: null
+  });
 
   // Hooks dla danych
   const knowledgeList = useKnowledgeList();
@@ -145,6 +158,65 @@ const KnowledgeAdmin = () => {
     } catch (err) {
       console.error('Nie udało się skopiować:', err);
     }
+  };
+
+  // Handler importu z pliku JSON
+  const handleJSONImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Reset state importu
+    setImportDialog({
+      open: true,
+      importing: true,
+      progress: { phase: 'starting', message: 'Rozpoczynanie importu...' },
+      results: null,
+      error: null
+    });
+
+    try {
+      const results = await bulkImportFromJSON(file, (progressData) => {
+        setImportDialog(prev => ({
+          ...prev,
+          progress: progressData
+        }));
+      });
+
+      // Sukces - pokaż wyniki
+      setImportDialog(prev => ({
+        ...prev,
+        importing: false,
+        results,
+        progress: null
+      }));
+
+      // Odśwież listę i statystyki
+      knowledgeList.fetchKnowledge();
+      stats.fetchStats();
+
+    } catch (error) {
+      console.error('Błąd importu:', error);
+      setImportDialog(prev => ({
+        ...prev,
+        importing: false,
+        error: error.message,
+        progress: null
+      }));
+    }
+
+    // Wyczyść input file
+    event.target.value = '';
+  };
+
+  // Handler zamknięcia dialogu importu
+  const handleCloseImportDialog = () => {
+    setImportDialog({
+      open: false,
+      importing: false,
+      progress: null,
+      results: null,
+      error: null
+    });
   };
 
   return (
@@ -224,9 +296,9 @@ const KnowledgeAdmin = () => {
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="h6">Szybkie akcje</Typography>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     <Button
                       variant="contained"
                       startIcon={<AddIcon />}
@@ -250,6 +322,21 @@ const KnowledgeAdmin = () => {
                       size="small"
                     >
                       Statystyki
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<FileUploadIcon />}
+                      component="label"
+                      size="small"
+                      color="secondary"
+                    >
+                      Importuj JSON
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleJSONImport}
+                        style={{ display: 'none' }}
+                      />
                     </Button>
                   </Box>
                 </Box>
@@ -800,6 +887,142 @@ const KnowledgeAdmin = () => {
           >
             {deleteKnowledge.deleting ? 'Usuwam...' : 'Usuń'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog importu JSON */}
+      <Dialog
+        open={importDialog.open}
+        onClose={!importDialog.importing ? handleCloseImportDialog : undefined}
+        maxWidth="md"
+        fullWidth
+        disableEscapeKeyDown={importDialog.importing}
+      >
+        <DialogTitle>
+          📦 Import bazy wiedzy z JSON
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {/* Trwa import - pokaż postęp */}
+            {importDialog.importing && importDialog.progress && (
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress sx={{ mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  {importDialog.progress.message}
+                </Typography>
+                
+                {importDialog.progress.phase === 'parsing' && (
+                  <Typography variant="body2" color="text.secondary">
+                    Analizuję strukturę pliku JSON...
+                  </Typography>
+                )}
+                
+                {importDialog.progress.phase === 'importing' && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" gutterBottom>
+                      Batch {importDialog.progress.currentBatch} z {importDialog.progress.totalBatches}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Przetworzono: {importDialog.progress.itemsProcessed} elementów
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {/* Import zakończony - pokaż wyniki */}
+            {!importDialog.importing && importDialog.results && (
+              <Box>
+                <Alert 
+                  severity={importDialog.results.totalErrors === 0 ? "success" : "warning"}
+                  sx={{ mb: 3 }}
+                >
+                  {importDialog.results.summary}
+                </Alert>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={4}>
+                    <Card variant="outlined">
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography variant="h6" color="primary">
+                          {importDialog.results.totalItems}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Znaleziono
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Card variant="outlined">
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography variant="h6" color="success.main">
+                          {importDialog.results.totalImported}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Zaimportowano
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Card variant="outlined">
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography variant="h6" color="error.main">
+                          {importDialog.results.totalErrors}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Błędów
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Szczegóły błędów jeśli występują */}
+                {importDialog.results.totalErrors > 0 && (
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Szczegóły błędów:
+                    </Typography>
+                    <Stack spacing={1}>
+                      {importDialog.results.results
+                        .filter(result => result.error)
+                        .map((result, index) => (
+                          <Alert key={index} severity="error" variant="outlined">
+                            Batch {result.batch}: {result.error} ({result.itemsInBatch} elementów)
+                          </Alert>
+                        ))}
+                    </Stack>
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {/* Błąd importu */}
+            {!importDialog.importing && importDialog.error && (
+              <Alert severity="error">
+                <Typography variant="subtitle2" gutterBottom>
+                  Błąd podczas importu:
+                </Typography>
+                <Typography variant="body2">
+                  {importDialog.error}
+                </Typography>
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          {!importDialog.importing && (
+            <Button onClick={handleCloseImportDialog} variant="contained">
+              Zamknij
+            </Button>
+          )}
+          {importDialog.importing && (
+            <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+              Trwa import... Proszę czekać
+            </Typography>
+          )}
         </DialogActions>
       </Dialog>
     </MainLayout>
