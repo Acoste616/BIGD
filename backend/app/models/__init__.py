@@ -1,16 +1,7 @@
-"""
-Moduł modeli - eksport wszystkich modeli domeny
-"""
-from app.models.domain import (
-    Client,
-    Session,
-    Interaction,
-    Feedback
-)
+# To make imports easier, we can expose the models at the package level.
+# For example, instead of from app.models.domain import Client,
+# we can do from app.models import Client.
 
-__all__ = [
-    "Client",
-    "Session",
-    "Interaction", 
-    "Feedback"
-]
+from .domain import Client, Session, Interaction
+
+__all__ = ["Client", "Session", "Interaction"]

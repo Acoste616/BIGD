@@ -44,10 +44,11 @@ class Settings(BaseSettings):
     OLLAMA_FALLBACK_MODEL: str = os.getenv("OLLAMA_FALLBACK_MODEL", "gpt-oss:20b")
     
     # CORS
-    CORS_ORIGINS: List[str] = os.getenv(
-        "CORS_ORIGINS", 
-        "http://localhost:3000,http://localhost:8000"
-    ).split(",")
+    CORS_ORIGINS_STR: str = os.getenv("CORS_ORIGINS_STR", "http://localhost:3000,http://localhost:8000")
+    
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        return self.CORS_ORIGINS_STR.split(",")
     
     # WebSocket
     WS_HEARTBEAT_INTERVAL: int = int(os.getenv("WS_HEARTBEAT_INTERVAL", "30"))

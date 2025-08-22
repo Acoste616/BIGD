@@ -123,7 +123,7 @@ async def init_db() -> None:
     """
     try:
         # Import wszystkich modeli, aby były zarejestrowane w Base.metadata
-        from app.models import Client, Session, Interaction, Feedback
+        from app.models import Client, Session, Interaction
         
         logger.info("Inicjalizacja bazy danych...")
         

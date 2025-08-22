@@ -74,11 +74,12 @@ export {
   formatSearchResults
 } from './knowledgeApi';
 
-// Eksport funkcji modułu Feedback
+// Eksport funkcji modułu Feedback (Blueprint Granularny System Ocen)
 export {
-  submitInteractionFeedback,
-  validateFeedbackRating,
-  formatFeedbackData
+  createFeedback,
+  formatFeedbackData,
+  isSuggestionRated,
+  getFeedbackStats
 } from './feedbackApi';
 
 // Przyszłe moduły API (placeholder)
@@ -255,3 +256,6 @@ export const clearApiCache = (prefix = null) => {
     }
   });
 };
+
+// Eksport feedback API (Blueprint Granularny System Ocen)
+export * as feedbackApi from './feedbackApi';

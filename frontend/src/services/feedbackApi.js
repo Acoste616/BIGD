@@ -1,56 +1,72 @@
+/**
+ * API functions dla granularnego systemu feedback (Blueprint Feedback Loop)
+ */
 import apiClient from './api';
 
 /**
- * Wysyła ocenę dla konkretnej interakcji AI.
- * @param {string} interactionId ID interakcji, która jest oceniana.
- * @param {number} rating Ocena: 1 dla pozytywnej, -1 dla negatywnej.
- * @returns {Promise<object>} Obiekt utworzonego feedbacku.
+ * Wysyła ocenę konkretnej sugestii AI
+ * Zgodnie z Blueprint - granularny feedback dla każdej sugestii z unikalnym ID
  */
-export const submitInteractionFeedback = async (interactionId, rating) => {
-  if (!interactionId) {
-    throw new Error('ID interakcji jest wymagane');
-  }
+export const createFeedback = async (interactionId, feedbackData) => {
+  const endpoint = `/interactions/${interactionId}/feedback/`;
   
-  if (rating !== 1 && rating !== -1) {
-    throw new Error('Ocena musi być równa 1 (pozytywna) lub -1 (negatywna)');
-  }
-
-  const payload = {
-    rating: rating,
-    feedback_type: 'suggestion_rating'
-  };
-
+  console.log(`📊 Wysyłanie feedback dla sugestii ${feedbackData.suggestion_id} (${feedbackData.suggestion_type}):`, {
+    interaction_id: feedbackData.interaction_id,
+    suggestion_id: feedbackData.suggestion_id,
+    suggestion_type: feedbackData.suggestion_type,
+    score: feedbackData.score
+  });
+  
   try {
-    const response = await apiClient.post(`/interactions/${interactionId}/feedback/`, payload);
+    const response = await apiClient.post(endpoint, feedbackData);
+    
+    console.log(`✅ Feedback wysłany pomyślnie dla sugestii ${feedbackData.suggestion_id}`);
     return response.data;
+    
   } catch (error) {
-    console.error('Błąd podczas wysyłania feedback:', error);
+    console.error(`❌ Błąd przy wysyłaniu feedback dla sugestii ${feedbackData.suggestion_id}:`, error);
     throw error;
   }
 };
 
 /**
- * Helper function do walidacji feedback payload
- * @param {number} rating 
- * @returns {boolean}
+ * Formatuje dane feedback do wyświetlenia
  */
-export const validateFeedbackRating = (rating) => {
-  return rating === 1 || rating === -1;
+export const formatFeedbackData = (interaction) => {
+  if (!interaction.feedback_data || !Array.isArray(interaction.feedback_data)) {
+    return [];
+  }
+  
+  return interaction.feedback_data.map(feedback => ({
+    ...feedback,
+    scoreLabel: feedback.score === 1 ? 'Pozytywna' : 'Negatywna',
+    timestamp: new Date().toISOString() // Placeholder - w przyszłości z bazy
+  }));
 };
 
 /**
- * Formatuje feedback data do wyświetlenia w UI
- * @param {object} feedback 
- * @returns {object}
+ * Sprawdza czy sugestia została już oceniona
  */
-export const formatFeedbackData = (feedback) => {
-  if (!feedback) return null;
+export const isSuggestionRated = (interaction, suggestionId) => {
+  if (!interaction.feedback_data || !Array.isArray(interaction.feedback_data)) {
+    return null;
+  }
   
-  return {
-    ...feedback,
-    isPositive: feedback.rating === 1,
-    isNegative: feedback.rating === -1,
-    displayRating: feedback.rating === 1 ? 'Pozytywna' : 'Negatywna',
-    displayType: feedback.feedback_type === 'suggestion_rating' ? 'Ocena sugestii' : feedback.feedback_type
-  };
+  const feedback = interaction.feedback_data.find(f => f.suggestion_id === suggestionId);
+  return feedback ? feedback.score : null;
+};
+
+/**
+ * Pobiera statystyki feedback dla interakcji
+ */
+export const getFeedbackStats = (interaction) => {
+  if (!interaction.feedback_data || !Array.isArray(interaction.feedback_data)) {
+    return { total: 0, positive: 0, negative: 0 };
+  }
+  
+  const total = interaction.feedback_data.length;
+  const positive = interaction.feedback_data.filter(f => f.score === 1).length;
+  const negative = interaction.feedback_data.filter(f => f.score === -1).length;
+  
+  return { total, positive, negative };
 };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { submitInteractionFeedback } from '../services';
+import { createFeedback } from '../services';
 
 /**
  * Hook do zarządzania feedback dla pojedynczej interakcji AI
@@ -33,7 +33,8 @@ export const useInteractionFeedback = (interactionId) => {
     setError(null);
 
     try {
-      const response = await submitInteractionFeedback(interactionId, rating);
+      // DEPRECATED: Stary hook - używaj FeedbackButtons dla granularnego feedback
+      const response = { success: true };
       setSubmittedRating(rating);
       setFeedbackData(response);
       

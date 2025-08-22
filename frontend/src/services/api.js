@@ -5,7 +5,7 @@
 import axios from 'axios';
 
 // Domyślna konfiguracja - używamy zmiennych środowiskowych React
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api/v1';
 const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000;
 
 // Tworzymy główną instancję axios

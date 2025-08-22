@@ -16,11 +16,13 @@ from .client import (
 from .session import (
     SessionBase,
     SessionCreate,
+    SessionCreateNested,
     SessionUpdate,
     SessionEnd,
     Session,
     SessionWithClient,
     SessionWithInteractions,
+    SessionDemo,
     SessionSummary,
     SessionAnalytics
 )
@@ -39,13 +41,7 @@ from .interaction import (
 
 # Feedback schemas
 from .feedback import (
-    FeedbackBase,
     FeedbackCreate,
-    FeedbackUpdate,
-    Feedback,
-    FeedbackWithInteraction,
-    FeedbackSummary,
-    FeedbackAnalytics
 )
 
 
@@ -62,11 +58,13 @@ __all__ = [
     # Session
     "SessionBase",
     "SessionCreate",
+    "SessionCreateNested", 
     "SessionUpdate",
     "SessionEnd",
     "Session",
     "SessionWithClient",
     "SessionWithInteractions",
+    "SessionDemo",
     "SessionSummary",
     "SessionAnalytics",
     
@@ -81,11 +79,5 @@ __all__ = [
     "InteractionRequest",
     
     # Feedback
-    "FeedbackBase",
     "FeedbackCreate",
-    "FeedbackUpdate",
-    "Feedback",
-    "FeedbackWithInteraction",
-    "FeedbackSummary",
-    "FeedbackAnalytics",
 ]

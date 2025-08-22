@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import { useInteractionFeedback } from '../hooks/useInteractionFeedback';
+import FeedbackButtons from './FeedbackButtons';
 import {
   Card,
   CardContent,
@@ -83,17 +84,25 @@ const InteractionCard = ({
   const aiResponse = interaction.ai_response_json || {};
   const quickResponse = aiResponse.quick_response;
   const isAIAvailable = !aiResponse.is_fallback;
+  
+  // Obsługa nowego formatu quick_response z unikalnym ID (Blueprint Feedback Loop)
+  const quickResponseText = typeof quickResponse === 'object' && quickResponse?.text 
+    ? quickResponse.text 
+    : typeof quickResponse === 'string' 
+    ? quickResponse 
+    : null;
+  const quickResponseId = typeof quickResponse === 'object' ? quickResponse?.id : null;
 
   // Handler dla kopiowania quick response
   const handleCopyQuickResponse = async () => {
-    if (quickResponse) {
+    if (quickResponseText) {
       try {
-        await navigator.clipboard.writeText(quickResponse);
+        await navigator.clipboard.writeText(quickResponseText);
         setCopiedQuickResponse(true);
         setTimeout(() => setCopiedQuickResponse(false), 2000);
         
         if (onCopyQuickResponse) {
-          onCopyQuickResponse(quickResponse);
+          onCopyQuickResponse(quickResponseText);
         }
       } catch (err) {
         console.error('Nie udało się skopiować tekstu:', err);
@@ -178,8 +187,8 @@ const InteractionCard = ({
           </Typography>
         </Paper>
 
-        {/* QUICK RESPONSE - główny element! */}
-        {quickResponse && (
+        {/* QUICK RESPONSE - główny element z granularnym feedback! */}
+        {quickResponseText && (
           <Alert 
             severity="info"
             sx={{ 
@@ -195,16 +204,26 @@ const InteractionCard = ({
             }}
             icon={<ChatBubbleOutlineIcon sx={{ fontSize: '1.5rem' }} />}
             action={
-              <Tooltip title={copiedQuickResponse ? "Skopiowano!" : "Kopiuj do schowka"}>
-                <IconButton
-                  color="info"
-                  size="small"
-                  onClick={handleCopyQuickResponse}
-                  sx={{ mr: 1 }}
-                >
-                  {copiedQuickResponse ? <CheckCircleIcon /> : <ContentCopyIcon />}
-                </IconButton>
-              </Tooltip>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {/* Blueprint Feedback Loop - Przyciski oceny dla quick_response */}
+                {quickResponseId && (
+                  <FeedbackButtons
+                    interactionId={interaction.id}
+                    suggestionId={quickResponseId}
+                    suggestionType="quick_response"
+                  />
+                )}
+                <Tooltip title={copiedQuickResponse ? "Skopiowano!" : "Kopiuj do schowka"}>
+                  <IconButton
+                    color="info"
+                    size="small"
+                    onClick={handleCopyQuickResponse}
+                    sx={{ mr: 1 }}
+                  >
+                    {copiedQuickResponse ? <CheckCircleIcon /> : <ContentCopyIcon />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
             }
           >
             <Box>
@@ -212,7 +231,7 @@ const InteractionCard = ({
                 💬 Sugerowana Odpowiedź
               </Typography>
               <Typography variant="body1" sx={{ lineHeight: 1.4 }}>
-                "{quickResponse}"
+                "{quickResponseText}"
               </Typography>
             </Box>
           </Alert>
@@ -335,26 +354,48 @@ const InteractionCard = ({
               🤔 Suggested Questions to Deepen Understanding
             </Typography>
             <Stack spacing={1}>
-              {aiResponse.suggested_questions.map((question, index) => (
-                <Box 
-                  key={index}
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: 1,
-                    p: 1,
-                    bgcolor: 'background.paper',
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'warning.light'
-                  }}
-                >
-                  <QuestionAnswerIcon sx={{ color: 'warning.main', fontSize: '1rem', mt: 0.1 }} />
-                  <Typography variant="body2" sx={{ fontStyle: 'italic', lineHeight: 1.4 }}>
-                    "{question}"
-                  </Typography>
-                </Box>
-              ))}
+              {aiResponse.suggested_questions.map((question, index) => {
+                // Obsługa nowego formatu question z unikalnym ID (Blueprint Feedback Loop)
+                const questionText = typeof question === 'object' && question?.text 
+                  ? question.text 
+                  : typeof question === 'string' 
+                  ? question 
+                  : '';
+                const questionId = typeof question === 'object' ? question?.id : null;
+                
+                return (
+                  <Box 
+                    key={questionId || index}
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start', 
+                      gap: 1,
+                      p: 1,
+                      bgcolor: 'background.paper',
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'warning.light'
+                    }}
+                  >
+                    <QuestionAnswerIcon sx={{ color: 'warning.main', fontSize: '1rem', mt: 0.1 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ fontStyle: 'italic', lineHeight: 1.4 }}>
+                        "{questionText}"
+                      </Typography>
+                      {/* Blueprint Feedback Loop - Przyciski oceny dla każdego pytania */}
+                      {questionId && (
+                        <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                          <FeedbackButtons
+                            interactionId={interaction.id}
+                            suggestionId={questionId}
+                            suggestionType="suggested_question"
+                          />
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })}
             </Stack>
           </Paper>
         )}
@@ -463,14 +504,34 @@ const InteractionCard = ({
                     Sugerowane pytania
                   </Typography>
                   <Stack spacing={1}>
-                    {aiResponse.qualifying_questions.map((question, index) => (
-                      <Typography key={index} variant="body2" sx={{ pl: 2, position: 'relative' }}>
-                        <Box component="span" sx={{ position: 'absolute', left: 0, color: 'primary.main', fontWeight: 'bold' }}>
-                          Q:
+                    {aiResponse.qualifying_questions.map((question, index) => {
+                      // Obsługa formatu question z unikalnym ID (Blueprint)
+                      const questionText = typeof question === 'object' && question?.text 
+                        ? question.text 
+                        : typeof question === 'string' 
+                        ? question 
+                        : '';
+                      const questionId = typeof question === 'object' ? question?.id : null;
+                      
+                      return (
+                        <Box key={questionId || index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                          <Typography variant="body2" sx={{ pl: 2, position: 'relative', flex: 1 }}>
+                            <Box component="span" sx={{ position: 'absolute', left: 0, color: 'primary.main', fontWeight: 'bold' }}>
+                              Q:
+                            </Box>
+                            {questionText}
+                          </Typography>
+                          {/* Feedback buttons dla qualifying questions */}
+                          {questionId && (
+                            <FeedbackButtons
+                              interactionId={interaction.id}
+                              suggestionId={questionId}
+                              suggestionType="qualifying_question"
+                            />
+                          )}
                         </Box>
-                        {question}
-                      </Typography>
-                    ))}
+                      );
+                    })}
                   </Stack>
                 </Box>
               )}

@@ -6,7 +6,6 @@ from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 
 if TYPE_CHECKING:
-    from .feedback import Feedback
     from .session import Session
     from .client import Client
 
@@ -57,6 +56,7 @@ class Interaction(InteractionBase):
     suggested_actions: Optional[List[Dict[str, Any]]] = Field(default=[], description="Sugerowane akcje")
     identified_signals: Optional[List[str]] = Field(default=[], description="Zidentyfikowane sygnały")
     archetype_match: Optional[str] = Field(None, description="Dopasowany archetyp")
+    feedback_data: Optional[List[Dict[str, Any]]] = Field(default=[], description="Lista ocen feedbacku")
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,9 +65,6 @@ class InteractionWithFeedback(Interaction):
     """
     Schemat interakcji z feedbackiem
     """
-
-    
-    feedbacks: List["Feedback"] = []
     feedback_score: Optional[float] = Field(None, description="Średnia ocena feedbacku")
     
     model_config = ConfigDict(from_attributes=True)
@@ -77,11 +74,8 @@ class InteractionWithContext(Interaction):
     """
     Schemat interakcji z kontekstem sesji i klienta
     """
-
-    
     session: Optional["Session"] = None
     client: Optional["Client"] = None
-    feedbacks: List["Feedback"] = []
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -101,16 +95,15 @@ class InteractionResponse(BaseModel):
     Uwzględnia nowe zasady generowania odpowiedzi (holistyczne vs atomowe)
     """
     # Natychmiastowa odpowiedź (HOLISTYCZNA - na podstawie całej historii)
-    quick_response: str = Field(
+    quick_response: Dict[str, str] = Field(
         ...,
-        max_length=300,
-        description="Krótka, naturalna odpowiedź spójna z CAŁĄ historią rozmowy - gotowa do natychmiastowego użycia"
+        description="Krótka odpowiedź z unikalnym ID: {'id': 'qr_xyz', 'text': '...'}"
     )
     
-    # Pytania pogłębiające (ATOMOWE - tylko dla ostatniej wypowiedzi)
-    suggested_questions: List[str] = Field(
+    # Pytania pogłębiające (ATOMOWE - tylko dla ostatniej wypowiedzi)  
+    suggested_questions: List[Dict[str, str]] = Field(
         default=[],
-        description="Pytania pogłębiające dotyczące TYLKO ostatniej wypowiedzi klienta",
+        description="Pytania z unikalnymi ID: [{'id': 'sq_abc', 'text': '...'}]",
         max_length=5
     )
     
@@ -176,7 +169,6 @@ class InteractionRequest(BaseModel):
 # Import cykliczny - rozwiązanie dla typowania
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .feedback import Feedback
     from .session import Session
     from .client import Client
 

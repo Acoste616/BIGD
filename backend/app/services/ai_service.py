@@ -3,17 +3,34 @@ AI Service - Integracja z modelem językowym (LLM) poprzez Ollama
 """
 import json
 import asyncio
+import uuid
 from typing import Dict, List, Any, Optional, cast
 from datetime import datetime
 import logging
 
 import ollama
+from app.core.config import settings
+
+# --- POCZĄTEK ZMIAN ---
+
+# Dynamiczne tworzenie nagłówków do autoryzacji w Ollama Turbo
+headers = {}
+if settings.OLLAMA_API_KEY:
+    headers['Authorization'] = f'Bearer {settings.OLLAMA_API_KEY}'
+
+# Inicjalizacja klienta z hostem i nagłówkami
+client = ollama.Client(
+    host=settings.OLLAMA_API_URL,
+    headers=headers
+)
+
+# --- KONIEC ZMIAN ---
+
 from ollama import Client
 from pydantic import ValidationError
 
 from app.schemas.interaction import InteractionResponse
 from app.models.domain import Client as DomainClient, Session, Interaction
-from app.core.config import settings
 from .qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
@@ -40,24 +57,25 @@ class AIService:
             qdrant_service: Instancja serwisu Qdrant do pobierania wiedzy kontekstowej
         """
         self.qdrant_service = qdrant_service
-        self.model_name = "gpt-oss:120b"  # POPRAWKA: Dwukropek zamiast myślnik
+        self.model_name = settings.OLLAMA_MODEL  # Używamy konfiguracji z settings
         self.max_retries = 3
         self.timeout_seconds = 60
 
-        # POPRAWNA IMPLEMENTACJA KLIENTA
-        try:
-            if not settings.OLLAMA_API_KEY:
-                raise ValueError("OLLAMA_API_KEY is not set in the environment.")
-
-            self.client = Client(
-                host="https://ollama.com",
-                headers={'Authorization': f'Bearer {settings.OLLAMA_API_KEY}'}
-            )
-            logger.info("✅ Tesla Co-Pilot AI został pomyślnie skonfigurowany z integracją RAG.")
-        except Exception as e:
-            logger.error(f"❌ KRYTYCZNY BŁĄD: Nie można skonfigurować Tesla Co-Pilot AI: {e}")
-            self.client = None
+        # Użyj globalnego klienta zainicjalizowanego na poziomie modułu
+        self.client = client
+        logger.info("✅ Tesla Co-Pilot AI został pomyślnie skonfigurowany z integracją RAG.")
     
+    def _generate_unique_suggestion_ids(self) -> Dict[str, str]:
+        """
+        Generuje unikalne ID dla sugestii zgodnie z Blueprint Feedback Loop
+        """
+        return {
+            "quick_response_id": f"qr_{uuid.uuid4().hex[:6]}",
+            "sq_1_id": f"sq_{uuid.uuid4().hex[:6]}",
+            "sq_2_id": f"sq_{uuid.uuid4().hex[:6]}",
+            "sq_3_id": f"sq_{uuid.uuid4().hex[:6]}"
+        }
+
     async def generate_analysis(
         self,
         user_input: str,
@@ -130,12 +148,16 @@ class AIService:
                 
             # === KONIEC NOWEJ LOGIKI RAG ===
 
+            # Wygeneruj unikalne ID dla sugestii (Blueprint Feedback Loop)
+            suggestion_ids = self._generate_unique_suggestion_ids()
+            
             # Krok 3: Zbuduj wzbogacony prompt systemowy (z wiedzą z RAG)
             system_prompt = self._build_system_prompt(
                 client_profile=client_profile,
                 session_history=session_history,
                 session_context=session_context or {},
-                knowledge_context=knowledge_context  # NOWY PARAMETR
+                knowledge_context=knowledge_context,  # NOWY PARAMETR
+                suggestion_ids=suggestion_ids  # ID dla granularnego feedback
             )
             
             # Zbuduj prompt użytkownika
@@ -177,7 +199,8 @@ class AIService:
         client_profile: Dict[str, Any],
         session_history: List[Dict[str, Any]],
         session_context: Dict[str, Any],
-        knowledge_context: str = "BRAK DODATKOWEGO KONTEKSTU Z BAZY WIEDZY."
+        knowledge_context: str = "BRAK DODATKOWEGO KONTEKSTU Z BAZY WIEDZY.",
+        suggestion_ids: Optional[Dict[str, str]] = None
     ) -> str:
         """
         Zbuduj dynamiczny prompt systemowy dla LLM - NOWA WERSJA PRO-TESLA
@@ -271,19 +294,27 @@ TWOJE NARZĘDZIA ANALITYCZNE (Frameworki):
 - Timing i pilność w procesie decyzyjnym
 
 KLUCZOWE ZASADY GENEROWANIA ODPOWIEDZI:
-1. Quick Response (Odpowiedź Holistyczna): Generując pole "quick_response", przeanalizuj CAŁĄ dotychczasową historię rozmowy. Odpowiedź musi być krótka, naturalna i spójna z całym znanym kontekstem.
-2. Pytania Pogłębiające (Odpowiedź Atomowa): Generując listę "suggested_questions", skup się WYŁĄCZNIE na ostatniej, bieżącej wypowiedzi/obserwacji użytkownika. Pytania muszą dotyczyć tego konkretnego punktu i pomagać go zgłębić.
+1. Quick Response (Odpowiedź Holistyczna): Generując pole quick_response, przeanalizuj CAŁĄ dotychczasową historię rozmowy. Odpowiedź musi być krótka, naturalna i spójna z całym znanym kontekstem.
+2. Pytania Pogłębiające (Odpowiedź Atomowa): Generując listę suggested_questions, skup się WYŁĄCZNIE na ostatniej, bieżącej wypowiedzi/obserwacji użytkownika. Pytania muszą dotyczyć tego konkretnego punktu i pomagać go zgłębić.
 
 WYMAGANY FORMAT ODPOWIEDZI:
 Zwróć WYŁĄCZNIE poprawny JSON zgodny z tym schematem (bez dodatkowego tekstu):
 
 {
-    "quick_response": "Krótka, naturalna odpowiedź spójna z CAŁĄ historią rozmowy - gotowa do natychmiastowego użycia",
+    "quick_response": {
+        "id": "{quick_response_id}",
+        "text": "Krótka, naturalna odpowiedź spójna z CAŁĄ historią rozmowy - gotowa do natychmiastowego użycia"
+    },
     
     "suggested_questions": [
-        "Pytanie pogłębiające dotyczące TYLKO ostatniej wypowiedzi klienta?",
-        "Drugie pytanie o ten sam konkretny punkt?",
-        "Trzecie pytanie pomagające zgłębić tę ostatnią obserwację?"
+        {
+            "id": "{sq_1_id}",
+            "text": "Pytanie pogłębiające dotyczące TYLKO ostatniej wypowiedzi klienta?"
+        },
+        {
+            "id": "{sq_2_id}",
+            "text": "Drugie pytanie o ten sam konkretny punkt?"
+        }
     ],
     
     "main_analysis": "Holistyczna analiza całej sytuacji na podstawie pełnej historii (2-3 zdania)",
@@ -332,6 +363,13 @@ KRYTYCZNE INSTRUKCJE WYKONANIA:
 
 PAMIĘTAJ: Odpowiadaj TYLKO w JSON. Żadnego dodatkowego tekstu przed ani po JSON!
 """
+        
+        # Zastąp placeholdery ID prawdziwymi wartościami (Blueprint Feedback Loop)
+        if suggestion_ids:
+            # Prostsze podejście - bezpośrednie zastąpienie bez .format()
+            system_prompt = system_prompt.replace("{quick_response_id}", suggestion_ids["quick_response_id"])
+            system_prompt = system_prompt.replace("{sq_1_id}", suggestion_ids["sq_1_id"])
+            system_prompt = system_prompt.replace("{sq_2_id}", suggestion_ids["sq_2_id"])
         
         return system_prompt
     
@@ -401,8 +439,8 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
         if self.client is None:
             raise ConnectionError("Klient Ollama nie został poprawnie zainicjalizowany.")
 
-        response = self.client.chat(  # <-- KLUCZOWA ZMIANA: używamy instancji klienta
-            model=self.model_name, # Używamy self.model_name (gpt-oss:120b)
+        response = self.client.chat(
+            model=self.model_name,  # Używamy settings.OLLAMA_MODEL (gpt-oss:120b)
             messages=[
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': user_prompt}
@@ -459,9 +497,12 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
     
     def _create_fallback_response(self, user_input: str, error_msg: str) -> Dict[str, Any]:
         """
-        Stwórz fallback response gdy LLM nie działa
+        Stwórz fallback response gdy LLM nie działa (z unikalnymi ID dla Feedback Loop)
         """
         logger.warning(f"🔄 AI Service: Używam fallback response dla: '{user_input[:50]}...'")
+        
+        # Wygeneruj unikalne ID dla fallback sugestii
+        fallback_ids = self._generate_unique_suggestion_ids()
         
         return {
             "main_analysis": f"Analiza Tesla Co-Pilot: '{user_input[:100]}...' - Połączenie z AI chwilowo niedostępne. Skup się na unikatowych przewagach Tesli: Supercharger, OTA updates, bezpieczeństwo 5-gwiazdek.",
@@ -503,8 +544,23 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
             "next_best_action": "Zbierz więcej informacji o potrzebach klienta",
             "follow_up_timing": "W ciągu 24-48 godzin",
             
-            # Natychmiastowa odpowiedź (fallback)
-            "quick_response": "Rozumiem. Czy mógłby Pan powiedzieć więcej o swoich potrzebach? Tesla oferuje rozwiązania dla każdego stylu życia.",
+            # Natychmiastowa odpowiedź (fallback z unikalnym ID)
+            "quick_response": {
+                "id": fallback_ids["quick_response_id"],
+                "text": "Rozumiem. Czy mógłby Pan powiedzieć więcej o swoich potrzebach? Tesla oferuje rozwiązania dla każdego stylu życia."
+            },
+            
+            # Sugerowane pytania (fallback z unikalnymi ID)
+            "suggested_questions": [
+                {
+                    "id": fallback_ids["sq_1_id"],
+                    "text": "Jakie są Pana główne priorytety przy wyborze samochodu?"
+                },
+                {
+                    "id": fallback_ids["sq_2_id"],
+                    "text": "Czy rozważał Pan wcześniej samochód elektryczny?"
+                }
+            ],
             
             # Metadata błędu
             "is_fallback": True,

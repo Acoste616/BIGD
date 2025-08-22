@@ -1,0 +1,11 @@
+# Ignoruj zależności Node.js, są instalowane wewnątrz kontenera
+node_modules
+
+# Ignoruj pliki builda, są generowane wewnątrz kontenera
+dist
+build
+
+# Ignoruj pliki logów i konfiguracji lokalnej
+npm-debug.log
+.env
+.DS_Store
