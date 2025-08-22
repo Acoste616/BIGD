@@ -81,7 +81,8 @@ class AIService:
         user_input: str,
         client_profile: Dict[str, Any],
         session_history: List[Dict[str, Any]],
-        session_context: Optional[Dict[str, Any]] = None
+        session_context: Optional[Dict[str, Any]] = None,
+        mode: str = 'suggestion'
     ) -> Dict[str, Any]:
         """
         Generuj inteligentną analizę sprzedażową dla danej interakcji
@@ -91,13 +92,27 @@ class AIService:
             client_profile: Profil klienta (archetyp, tagi, notatki)
             session_history: Historia ostatnich interakcji w sesji
             session_context: Dodatkowy kontekst sesji
+            mode: Tryb działania ('suggestion' dla sprzedaży, 'training' dla AI Dojo)
             
         Returns:
-            Słownik z pełną analizą zgodną z InteractionResponse schema
+            Słownik z pełną analizą zgodną z InteractionResponse schema (suggestion mode)
+            lub odpowiedź AI Dojo (training mode)
             
         Raises:
             Exception: Gdy nie udało się wygenerować odpowiedzi
         """
+        # === AI DOJO: ROZGAŁĘZIENIE LOGIKI ===
+        if mode == 'training':
+            # Tryb treningowy AI Dojo - zupełnie oddzielna logika
+            return await self._handle_training_conversation(
+                user_input=user_input,
+                client_profile=client_profile,
+                session_history=session_history,
+                session_context=session_context
+            )
+        
+        # === ISTNIEJĄCA LOGIKA SPRZEDAŻOWA (mode='suggestion') ===
+        # UWAGA: Poniższy kod nie został zmodyfikowany - działa dokładnie tak samo!
         start_time = datetime.now()
         
         try:
@@ -568,6 +583,283 @@ Przeanalizuj tę sytuację i dostarcz inteligentnych rekomendacji w formacie JSO
             "processing_time_ms": 0,
             "model_used": f"{self.model_name} (fallback)",
             "timestamp": datetime.now().isoformat()
+        }
+
+    # === AI DOJO: NOWE FUNKCJE TRENINGOWE ===
+    
+    async def _handle_training_conversation(
+        self,
+        user_input: str,
+        client_profile: Dict[str, Any],
+        session_history: List[Dict[str, Any]],
+        session_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Obsługa konwersacji treningowej w AI Dojo
+        
+        Tryb 'training': AI działa jak analityk wiedzy, zadaje pytania doprecyzowujące,
+        strukturyzuje informacje i przygotowuje je do zapisu w bazie Qdrant
+        
+        Args:
+            user_input: Wiadomość od eksperta/administratora
+            client_profile: Profil klienta (jeśli trening dotyczy konkretnego przypadku)
+            session_history: Historia konwersacji treningowej
+            session_context: Kontekst treningu
+            
+        Returns:
+            Dict zgodny z DojoMessageResponse (response, response_type, structured_data, etc.)
+        """
+        start_time = datetime.now()
+        
+        try:
+            logger.info("🎓 AI Dojo: Rozpoczynam przetwarzanie wiadomości treningowej")
+            logger.debug(f"Training input: '{user_input[:100]}...'")
+            
+            # Zbuduj specjalny prompt dla trybu treningowego
+            training_prompt = self._build_training_system_prompt(
+                client_profile=client_profile,
+                session_history=session_history,
+                session_context=session_context or {}
+            )
+            
+            # Zbuduj user prompt dla treningu
+            user_prompt = self._build_training_user_prompt(user_input)
+            
+            logger.info(f"🤖 AI Dojo: Wysyłanie do modelu {self.model_name} (tryb treningowy)")
+            
+            # Wywołaj LLM z retry logic (używamy tej samej funkcji co w trybie sprzedażowym)
+            response = await self._call_llm_with_retry(
+                system_prompt=training_prompt,
+                user_prompt=user_prompt
+            )
+            
+            # Parsuj odpowiedź AI Dojo (inna logika niż w trybie sprzedażowym)
+            training_analysis = self._parse_training_response(response)
+            
+            # Oblicz czas przetwarzania
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            # Dodaj metadata
+            training_analysis["processing_time_ms"] = int(processing_time)
+            training_analysis["timestamp"] = datetime.now().isoformat()
+            training_analysis["model_used"] = f"{self.model_name} (training mode)"
+            
+            logger.info(f"✅ AI Dojo: Analiza wygenerowana w {processing_time:.0f}ms")
+            logger.debug(f"Response type: {training_analysis.get('response_type', 'unknown')}")
+            
+            return training_analysis
+            
+        except Exception as e:
+            logger.error(f"❌ AI Dojo: Błąd podczas przetwarzania: {e}")
+            
+            # Fallback response dla AI Dojo
+            return self._create_training_fallback_response(user_input, str(e))
+    
+    def _build_training_system_prompt(
+        self,
+        client_profile: Dict[str, Any],
+        session_history: List[Dict[str, Any]],
+        session_context: Dict[str, Any]
+    ) -> str:
+        """
+        Zbuduj prompt systemowy dla AI Dojo (tryb treningowy)
+        
+        UWAGA: To jest zupełnie inny prompt niż w trybie sprzedażowym!
+        """
+        
+        system_prompt = """Jesteś EKSPERTEM STRUKTURYZACJI WIEDZY dla systemu sprzedaży Tesla Co-Pilot AI.
+
+=== TWOJA MISJA ===
+Otrzymujesz informacje od ekspertów sprzedaży i SZYBKO przekształcasz je w użyteczną, strukturalną wiedzę dla systemu. Jesteś PROAKTYWNY i EFEKTYWNY.
+
+=== ZŁOTE ZASADY (PRIORITY ORDER) ===
+
+1. **NAJPIERW: Sprawdź czy masz WYSTARCZAJĄCE informacje do przygotowania wiedzy**
+   - Jeśli tak → NATYCHMIAST przygotuj structured_data (response_type: "confirmation")
+   - Jeśli nie → zadaj MAKSYMALNIE 1-2 konkretne pytania (response_type: "question")
+
+2. **MINIMALIZUJ PYTANIA**: Nie zadawaj więcej niż 2 pytań. Po 2 pytaniach ZAWSZE przygotuj dane na podstawie tego co masz.
+
+3. **AKCJA nad PERFEKCJĄ**: Lepiej przygotować niekompletną wiedzę niż pytać w nieskończoność.
+
+=== KONTEKST TESLA & AUTOMATYCZNE UZUPEŁNIANIE ===
+
+Gdy przygotowujesz wiedzę o sprzedaży Tesla, automatycznie uzupełnij braki:
+
+**Dla pytań o CENĘ Tesla (przykład z user input):**
+- Typ wiedzy: "objection" lub "pricing"
+- Archetyp: null (uniwersalne, chyba że user wskaże konkretny)
+- Tagi: ["cena", "finansowanie", "wartość", "roi"]
+- Treść: Skoncentruj się na TCO, oszczędnościach, leasing, porównaniu z kosztami benzyny
+
+**Dla pytań technicznych:**
+- Typ wiedzy: "technical" lub "product"
+- Tagi: ["specyfikacja", "porównanie", "funkcje"]
+
+**Dla obsługi zastrzeżeń:**
+- Typ wiedzy: "objection"
+- Tagi: ["obiekcja", "odpowiedź", "persuasion"]
+
+=== SMART DEFAULTS ===
+Jeśli user nie podał wszystkich szczegółów, użyj inteligentnych domyślnych wartości:
+- knowledge_type: Dedukuj z kontekstu (cena=pricing, zastrzeżenia=objection, funkcje=product)
+- archetype: null (uniwersalne) chyba że jasno wskazano
+- source: "Ekspert sprzedaży" lub nazwa z kontekstu
+- tags: Automatycznie wygeneruj 3-5 relevantnych tagów
+
+=== PRZYKŁADY NATYCHMIASTOWEGO STRUKTURYZOWANIA ===
+
+**INPUT: "Jak najlepiej odpowiadać klientom pytającym o cenę Tesla?"**
+→ NATYCHMIAST przygotuj structured_data z typem "objection", tagami ["cena", "finansowanie", "tco"] 
+
+**INPUT: "Tesla Model Y ma nową opcję kolorystyczną"**
+→ NATYCHMIAST przygotuj structured_data z typem "product", tagami ["model-y", "kolory", "opcje"]
+
+**INPUT: "Klient mówi że zasięg to za mało"**
+→ NATYCHMIAST przygotuj structured_data z typem "objection", tagami ["zasięg", "obiekcje", "range-anxiety"]
+
+**TYLKO zadawaj pytania gdy:**
+- Informacja jest bardzo ogólna ("pomoc", "problem")
+- Brakuje kluczowych danych technicznych (konkretne liczby, modele)
+- User pyta o coś co nie dotyczy sprzedaży Tesla
+
+"""
+        
+        # Dodaj kontekst sesji treningowej
+        if session_context:
+            training_mode = session_context.get('training_mode', 'knowledge_update')
+            system_prompt += f"""
+=== TRYB TRENINGU ===
+Aktualny tryb: {training_mode}
+"""
+            
+        # Dodaj historię konwersacji treningowej
+        if session_history:
+            system_prompt += """
+=== HISTORIA KONWERSACJI TRENINGOWEJ ===
+"""
+            for i, msg in enumerate(session_history[-5:], 1):  # Ostatnie 5 wiadomości
+                timestamp = msg.get('timestamp', 'nieznany czas')
+                content = msg.get('message', msg.get('user_input', ''))
+                system_prompt += f"""
+{i}. [{timestamp}] {content[:200]}...
+"""
+        
+        # Instrukcje wyjściowe
+        system_prompt += """
+=== FORMAT ODPOWIEDZI ===
+Odpowiadaj WYŁĄCZNIE w formacie JSON zgodnym z jednym z poniższych wzorców:
+
+**TRYB PYTAŃ (gdy potrzebujesz więcej informacji):**
+{
+    "response": "Pytania doprecyzowujące lub prośba o więcej szczegółów",
+    "response_type": "question",
+    "confidence_level": 60,
+    "suggested_follow_up": ["Pytanie 1?", "Pytanie 2?"]
+}
+
+**TRYB STRUKTURYZOWANIA (gdy przygotowujesz dane do zapisu):**
+{
+    "response": "Przygotowałem kompleksową wiedzę o odpowiadaniu na pytania o cenę Tesla. Czy zapisać w bazie?",
+    "response_type": "confirmation", 
+    "structured_data": {
+        "title": "Skuteczne odpowiedzi na pytania o cenę Tesla",
+        "content": "Strategia odpowiedzi na pytania cenowe: 1) Przekieruj na wartość (TCO, oszczędności paliwowe, serwis), 2) Pokaż kalkulator porównawczy z benzyną, 3) Zaproponuj opcje finansowania (leasing, kredyt), 4) Podkreśl unikalne korzyści (Supercharger, aktualizacje OTA, bezpieczeństwo), 5) Dostosuj do archetypu klienta.",
+        "knowledge_type": "objection",
+        "archetype": null,
+        "tags": ["cena", "finansowanie", "tco", "wartość", "obiekcje"],
+        "source": "Administrator"
+    },
+    "confidence_level": 90
+}
+
+**TRYB STATUS (potwierdzenia, błędy):**
+{
+    "response": "Informacja została zapisana/wystąpił błąd/inne",
+    "response_type": "status",
+    "confidence_level": 95
+}
+
+PAMIĘTAJ: Odpowiadaj TYLKO w JSON, bez dodatkowego tekstu!
+"""
+        
+        return system_prompt
+    
+    def _build_training_user_prompt(self, user_input: str) -> str:
+        """
+        Zbuduj prompt użytkownika dla trybu treningowego
+        """
+        return f"""
+WIADOMOŚĆ OD EKSPERTA:
+"{user_input}"
+
+Przeanalizuj tę informację i odpowiedz zgodnie z instrukcjami systemowymi.
+"""
+    
+    def _parse_training_response(self, llm_response: str) -> Dict[str, Any]:
+        """
+        Parsuj odpowiedź LLM w trybie treningowym
+        
+        Inna logika niż w trybie sprzedażowym - oczekujemy DojoMessageResponse format
+        """
+        try:
+            # Usuń potencjalne białe znaki i znajdź JSON
+            cleaned_response = llm_response.strip()
+            
+            # Znajdź początek i koniec JSON
+            start_idx = cleaned_response.find('{')
+            end_idx = cleaned_response.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx == 0:
+                raise ValueError("Nie znaleziono JSON w odpowiedzi AI Dojo")
+            
+            json_str = cleaned_response[start_idx:end_idx]
+            
+            # Parsuj JSON
+            parsed_data = json.loads(json_str)
+            
+            # Walidacja - sprawdź czy ma wymagane pola
+            required_fields = ["response", "response_type"]
+            for field in required_fields:
+                if field not in parsed_data:
+                    raise ValueError(f"Brakuje wymaganego pola: {field}")
+            
+            # Dodaj domyślne wartości jeśli brakuje
+            if "confidence_level" not in parsed_data:
+                parsed_data["confidence_level"] = 70
+            
+            logger.debug(f"AI Dojo response type: {parsed_data['response_type']}")
+            
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ AI Dojo JSON parsing error: {e}")
+            logger.debug(f"Raw AI response: {llm_response}")
+            raise ValueError(f"Niepoprawny JSON od AI Dojo: {e}")
+            
+        except Exception as e:
+            logger.error(f"❌ AI Dojo response parsing error: {e}")
+            raise ValueError(f"Błąd parsowania odpowiedzi AI Dojo: {e}")
+    
+    def _create_training_fallback_response(self, user_input: str, error_msg: str) -> Dict[str, Any]:
+        """
+        Stwórz fallback response dla AI Dojo gdy LLM nie działa
+        """
+        logger.warning(f"🔄 AI Dojo: Używam fallback response dla: '{user_input[:50]}...'")
+        
+        return {
+            "response": f"Przepraszam, chwilowo nie mogę przetworzyć Twojej wiadomości: '{user_input[:100]}...'. Spróbuj ponownie za chwilę lub sformułuj pytanie inaczej.",
+            "response_type": "error",
+            "confidence_level": 0,
+            "suggested_follow_up": [
+                "Czy możesz przeformułować swoją wiadomość?",
+                "Czy chcesz spróbować za chwilę?"
+            ],
+            "processing_time_ms": 0,
+            "model_used": f"{self.model_name} (fallback)",
+            "timestamp": datetime.now().isoformat(),
+            "is_fallback": True,
+            "error_reason": error_msg
         }
 
 

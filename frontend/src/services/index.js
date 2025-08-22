@@ -82,6 +82,22 @@ export {
   getFeedbackStats
 } from './feedbackApi';
 
+// Eksport funkcji modułu AI Dojo (Moduł 3: Sparing z Mistrzem)
+export {
+  sendDojoMessage,
+  confirmKnowledgeWrite,
+  getSessionSummary,
+  getDojoAnalytics,
+  getDojoHealth,
+  validateDojoMessage,
+  validateStructuredData,
+  formatDojoResponse,
+  generateSessionId,
+  TRAINING_MODES,
+  RESPONSE_TYPES,
+  KNOWLEDGE_TYPES
+} from './dojoApi';
+
 // Przyszłe moduły API (placeholder)
 // export * from './authApi';
 

@@ -188,13 +188,23 @@ const ClientList = () => {
         <Stack direction="row" spacing={2}>
           <Button
             component={Link}
-            to="/clients/new"
+            to="/analysis/new"
             variant="contained"
+            startIcon={<ChatIcon />}
+            size="large"
+            sx={{ px: 3, textDecoration: 'none' }}
+          >
+            Rozpocznij Nową Analizę
+          </Button>
+          <Button
+            component={Link}
+            to="/clients/new"
+            variant="outlined"
             startIcon={<AddIcon />}
             size="large"
             sx={{ px: 3, textDecoration: 'none' }}
           >
-            Dodaj Nowego Klienta
+            Dodaj Klienta (Manual)
           </Button>
         </Stack>
       </Box>

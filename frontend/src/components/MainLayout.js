@@ -34,6 +34,9 @@ import {
   AccountCircle as AccountCircleIcon,
   ChevronLeft as ChevronLeftIcon,
   Psychology as PsychologyIcon,
+  Dashboard as DashboardIcon,
+  Person as PersonIcon,
+  School as SchoolIcon,
 } from '@mui/icons-material';
 
 // Szerokość szuflady nawigacyjnej
@@ -42,10 +45,37 @@ const drawerWidth = 260;
 // Elementy menu nawigacyjnego
 const menuItems = [
   {
-    text: 'AI Co-Pilot',
-    icon: <ChatIcon />,
+    text: 'Dashboard',
+    icon: <DashboardIcon />,
     path: '/',
-    badge: { content: 'Live', color: 'success' },
+  },
+  {
+    text: 'Klienci',
+    icon: <PersonIcon />,
+    path: '/clients',
+  },
+  {
+    text: 'Demo: Quick Response',
+    icon: <ChatIcon />,
+    path: '/demo/interactions',
+    badge: { content: 'DEMO', color: 'primary' },
+  },
+  {
+    text: 'Zarządzanie Wiedzą',
+    icon: <PsychologyIcon />,
+    path: '/admin/knowledge',
+    badge: { content: 'ADMIN', color: 'warning' },
+  },
+  {
+    text: 'AI Dojo: Sparing z Mistrzem',
+    icon: <SchoolIcon />,
+    path: '/admin/dojo',
+    badge: { content: 'MODUŁ 3', color: 'secondary' },
+  },
+  {
+    text: 'Ustawienia',
+    icon: <SettingsIcon />,
+    path: '/settings',
   },
 ];
 
