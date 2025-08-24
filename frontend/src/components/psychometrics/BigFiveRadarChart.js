@@ -71,9 +71,9 @@ const BigFiveRadarChart = ({ data }) => {
         
         return Object.entries(data).map(([key, trait]) => ({
             subject: traitLabels[key] || key,        // ✅ POPRAWKA: subject zamiast trait
-            A: trait.score || 0,                     // ✅ POPRAWKA: A zamiast score  
-            rationale: trait.rationale,
-            strategy: trait.strategy,
+            A: (trait && trait.score) || 0,          // 🔧 NAPRAWA: Sprawdź czy trait nie jest null
+            rationale: (trait && trait.rationale) || 'Brak danych',
+            strategy: (trait && trait.strategy) || 'Identyfikacja w toku',
             fullMark: 10
         }));
     }, [data]);

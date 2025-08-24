@@ -60,7 +60,7 @@ class InteractionRepository:
             print(f"🔄 [CREATE] Tworzenie interakcji: is_clarification={is_clarification}, parent_id={parent_id}")
             
             try:
-                # NOWA LOGIKA: Różne ścieżki dla clarification vs standard
+                # NOWA LOGIKA v4.0 - ULTRA MÓZG: Psychology PRZED AI Response
                 if client:
                     client_profile = {
                         "alias": client.alias,
@@ -72,30 +72,58 @@ class InteractionRepository:
                     session_history = []
                     session_context = {"session_type": "consultation"}
                     
+                    # KROK 3.1: KLUCZOWE! Pobierz i zaktualizuj surowe dane psychometryczne PRZED AI response
+                    logger.info(f"🧠 [ULTRA BRAIN REPO] Rozpoczynam analizę psychology dla sesji {session_id}")
+                    updated_psychology_profile = await session_psychology_engine.update_and_get_psychology(
+                        session_id=session_id,
+                        db=db,
+                        ai_service=ai_service
+                    )
+                    logger.info(f"✅ [ULTRA BRAIN REPO] Psychology profile gotowy! Confidence: {updated_psychology_profile.get('psychology_confidence', 0)}%")
+                    
+                    # FAZA 2 ULTRA MÓZGU: SYNTEZA HOLISTYCZNA - DNA Klienta
+                    logger.info(f"🔬 [SYNTEZATOR REPO] Rozpoczynam syntezę holistycznego profilu...")
+                    holistic_profile = await ai_service._run_holistic_synthesis(updated_psychology_profile)
+                    logger.info(f"✅ [SYNTEZATOR REPO] DNA Klienta gotowe! Drive: {holistic_profile.get('main_drive', 'Unknown')}")
+                    
+                    # Zapisz holistyczny profil w bazie danych
+                    try:
+                        await db.execute(
+                            update(SessionModel)
+                            .where(SessionModel.id == session_id)
+                            .values(holistic_psychometric_profile=holistic_profile)
+                        )
+                        logger.info(f"💾 [SYNTEZATOR REPO] Holistyczny profil zapisany w bazie dla sesji {session_id}")
+                    except Exception as e:
+                        logger.error(f"❌ [SYNTEZATOR REPO] Błąd zapisu holistycznego profilu: {e}")
+                    
                     if is_clarification and parent_id:
-                        # ŚCIEŻKA CLARIFICATION: Standardowa analiza (funkcja usunięta w v3.0)
-                        print(f"🔄 [CLARIFICATION] DEPRECATED - używam standard analysis dla parent={parent_id}")
+                        # ŚCIEŻKA CLARIFICATION: Analiza z DNA Klienta (Ultra Mózg v4.0)
+                        logger.info(f"⚡ [ULTRA BRAIN] Clarification analysis z DNA Klienta dla parent={parent_id}")
                         
                         ai_response = await generate_sales_analysis(
                             user_input=f"Aktualizacja: {interaction_data.user_input}",
                             client_profile=client_profile,
                             session_history=session_history,
-                            session_context={'type': 'clarification_update'}
+                            session_context={'type': 'clarification_update'},
+                            session_psychology=updated_psychology_profile,  # DEPRECATED v4.0
+                            holistic_profile=holistic_profile               # NOWY v4.0: DNA Klienta
                         )
                     else:
-                        # ŚCIEŻKA STANDARD: Nowa analiza z dwuetapowym procesem
-                        print(f"🔄 [STANDARD] Generuję nową analizę z dwuetapowym procesem")
+                        # ŚCIEŻKA STANDARD: Strategia z DNA Klienta (Ultra Mózg v4.0)
+                        logger.info(f"⚡ [ULTRA BRAIN] Generator Strategii aktywny - używam DNA Klienta")
                         
                         ai_response = await generate_sales_analysis(
                             user_input=interaction_data.user_input,
                             client_profile=client_profile,
                             session_history=session_history,
-                            session_context=session_context
+                            session_context=session_context,
+                            session_psychology=updated_psychology_profile,  # DEPRECATED v4.0
+                            holistic_profile=holistic_profile,              # NOWY v4.0: DNA Klienta
+                            customer_archetype=updated_psychology_profile.get('customer_archetype')  # NOWE! Customer archetype
                         )
                         
-                        # Dodaj confidence scoring do response
-                        ai_response['analysis_confidence'] = 50  # Default, zostanie zaktualizowane przez background task
-                        ai_response['needs_more_info'] = False   # Default
+                        # USUNIĘTE: Stare confidence scoring - teraz mamy prawdziwe dane z psychology engine
                     
                     interaction_dict["ai_response_json"] = ai_response
                     
@@ -117,18 +145,9 @@ class InteractionRepository:
             await db.flush()
             await db.refresh(db_interaction)
             
-            # NOWA ARCHITEKTURA v3.0: Session-Level Psychology Engine
-            try:
-                # Uruchom SessionPsychologyEngine dla całej sesji (nie per interakcja)
-                # KRYTYCZNA NAPRAWA: Nie przekazuj db - engine stworzy własną świeżą sesję
-                import asyncio
-                asyncio.create_task(
-                    session_psychology_engine.update_cumulative_profile(session_id, None)
-                )
-                print(f"🧠 [SESSION PSYCHOLOGY] Engine uruchomiony dla sesji {session_id}")
-            except Exception as psychology_error:
-                # Loguj błąd, ale nie przerywaj głównego flow
-                print(f"Błąd podczas uruchamiania Session Psychology Engine: {psychology_error}")
+            # ULTRA MÓZG v4.0: Background task USUNIĘTY! 
+            # Psychology jest teraz przetwarzana synchronicznie PRZED AI response
+            logger.info(f"🧠⚡ [ULTRA MÓZG] Dwuetapowa analiza ukończona! Synteza + Strategia dla sesji {session_id}")
             
             return db_interaction
             

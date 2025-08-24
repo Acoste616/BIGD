@@ -25,7 +25,10 @@ import {
 const CustomerArchetypeDisplay = ({ 
     customerArchetype, 
     psychologyConfidence = 0,
-    loading = false 
+    loading = false,
+    // 🧠⚡ ULTRA MÓZG v4.0: NOWE PROPSY
+    dnaKlienta = null,
+    isDnaReady = false
 }) => {
     // Loading state
     if (loading) {
@@ -45,14 +48,46 @@ const CustomerArchetypeDisplay = ({
         );
     }
 
-    // Brak danych
-    if (!customerArchetype) {
+    // 🧠⚡ LOGIKA DECYZYJNA ULTRA MÓZGU
+    // Priorytetyzuj DNA Klienta nad legacy customer archetype
+    let activeArchetype, activeConfidence, activeDNA, isUltraBrainActive;
+    
+    if (isDnaReady && dnaKlienta) {
+        // ULTRA MÓZG: Używamy DNA Klienta
+        isUltraBrainActive = true;
+        activeArchetype = {
+            archetype_name: dnaKlienta.holistic_summary || 'DNA Klienta',
+            archetype_key: 'ultra_brain',
+            description: dnaKlienta.main_drive || 'Identyfikuję główny motor napędowy...',
+            motivation: dnaKlienta.main_drive || '',
+            communication_style: dnaKlienta.communication_style?.recommended_tone || '',
+            key_traits: dnaKlienta.key_levers || [],
+            sales_strategy: {
+                do: dnaKlienta.key_levers || [],
+                dont: dnaKlienta.red_flags || []
+            }
+        };
+        activeConfidence = dnaKlienta.confidence || psychologyConfidence;
+        activeDNA = dnaKlienta;
+    } else {
+        // LEGACY: Używamy starych danych
+        isUltraBrainActive = false;
+        activeArchetype = customerArchetype;
+        activeConfidence = psychologyConfidence;
+        activeDNA = null;
+    }
+
+    // Brak danych (ani legacy ani Ultra Mózg)
+    if (!activeArchetype) {
         return (
             <Card variant="outlined" sx={{ mb: 3 }}>
                 <CardContent sx={{ textAlign: 'center', py: 3 }}>
                     <ArchetypeIcon sx={{ fontSize: 32, mb: 1, color: 'text.secondary' }} />
                     <Typography variant="body1" color="text.secondary">
-                        Archetyp klienta zostanie określony po zebraniu wystarczających danych psychologicznych
+                        {isUltraBrainActive ? 
+                            'Ultra Mózg analizuje profil psychologiczny klienta...' :
+                            'Archetyp klienta zostanie określony po zebraniu wystarczających danych psychologicznych'
+                        }
                     </Typography>
                 </CardContent>
             </Card>
@@ -62,13 +97,13 @@ const CustomerArchetypeDisplay = ({
     const {
         archetype_name = 'Nieznany Archetyp',
         archetype_key = 'unknown',
-        confidence = psychologyConfidence,
+        confidence = activeConfidence,
         key_traits = [],
         sales_strategy = {},
         description = '',
         motivation = '',
         communication_style = ''
-    } = customerArchetype;
+    } = activeArchetype;
 
     const { do: doActions = [], dont: dontActions = [] } = sales_strategy;
 
@@ -78,12 +113,14 @@ const CustomerArchetypeDisplay = ({
             'analityk': '#1976d2',        // Blue - Analytical
             'wizjoner': '#7b1fa2',        // Purple - Visionary  
             'relacyjny_budowniczy': '#388e3c', // Green - Relationship
-            'szybki_decydent': '#d32f2f'  // Red - Quick Decision
+            'szybki_decydent': '#d32f2f', // Red - Quick Decision
+            'ultra_brain': '#2196f3'      // 🧠⚡ ULTRA MÓZG - Special color
         };
         return colors[key] || '#616161';
     };
 
     const archetypeColor = getArchetypeColor(archetype_key);
+    const displayConfidence = confidence || activeConfidence;
 
     return (
         <Fade in={true} timeout={500}>
@@ -114,17 +151,30 @@ const CustomerArchetypeDisplay = ({
                                 {archetype_name.split(' ')[0]} {/* First emoji */}
                             </Box>
                             <Box>
-                                <Typography 
-                                    variant="h5" 
-                                    sx={{ 
-                                        fontWeight: 'bold', 
-                                        color: archetypeColor 
-                                    }}
-                                >
-                                    {archetype_name}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                    <Typography 
+                                        variant="h5" 
+                                        sx={{ 
+                                            fontWeight: 'bold', 
+                                            color: archetypeColor 
+                                        }}
+                                    >
+                                        {archetype_name}
+                                    </Typography>
+                                    {isUltraBrainActive && (
+                                        <Chip 
+                                            label="🧠⚡ ULTRA MÓZG" 
+                                            size="small" 
+                                            color="primary" 
+                                            sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}
+                                        />
+                                    )}
+                                </Box>
                                 <Typography variant="body2" color="text.secondary">
-                                    Dominujący archetyp klienta
+                                    {isUltraBrainActive ? 
+                                        'DNA Klienta wygenerowane przez Ultra Mózg' :
+                                        'Dominujący archetyp klienta'
+                                    }
                                 </Typography>
                             </Box>
                         </Box>
@@ -133,8 +183,8 @@ const CustomerArchetypeDisplay = ({
                         <Box textAlign="center">
                             <Chip 
                                 icon={<ConfidenceIcon />}
-                                label={`${confidence}%`}
-                                color={confidence >= 80 ? "success" : confidence >= 60 ? "warning" : "default"}
+                                label={`${displayConfidence}%`}
+                                color={displayConfidence >= 80 ? "success" : displayConfidence >= 60 ? "warning" : "default"}
                                 variant="outlined"
                                 sx={{ fontWeight: 'bold' }}
                             />

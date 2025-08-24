@@ -32,10 +32,16 @@ class Session(Base):
     
     # NOWA ARCHITEKTURA v3.0: SESSION-LEVEL CUMULATIVE PSYCHOLOGY
     cumulative_psychology = Column(JSONB, nullable=True, comment="Ciągły, ewoluujący profil psychologiczny całej sesji")
-    psychology_confidence = Column(Integer, default=0, comment="Poziom pewności AI co do profilu (0-100%)")
+    psychology_confidence = Column(Integer, default=0, nullable=True, comment="Poziom pewności AI co do profilu (0-100%)")
     active_clarifying_questions = Column(JSONB, nullable=True, comment="Aktywne pytania pomocnicze czekające na odpowiedź sprzedawcy")
     customer_archetype = Column(JSONB, nullable=True, comment="Finalny, zsyntetyzowany archetyp klienta i kluczowe porady")
     psychology_updated_at = Column(DateTime, nullable=True, comment="Ostatnia aktualizacja profilu psychologicznego")
+    
+    # MODUŁ 4: Zaawansowane Wskaźniki Sprzedażowe
+    sales_indicators = Column(JSONB, nullable=True, comment="Predykcyjne wskaźniki sprzedażowe dla sesji: temperatura, etap podróży, ryzyko, potencjał")
+    
+    # FAZA 1 ULTRA MÓZGU: Pole dla przyszłego Syntezatora
+    holistic_psychometric_profile = Column(JSONB, nullable=True, comment="Holistyczny profil psychometryczny z przyszłego Syntezatora - łączy wszystkie aspekty w jeden spójny obraz klienta")
 
     client = relationship("Client", back_populates="sessions")
     interactions = relationship("Interaction", back_populates="session")

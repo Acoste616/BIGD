@@ -27,6 +27,19 @@ class Session(SessionBase):
     interactions: List[Interaction] = []
     status: str
     outcome_data: Optional[dict] = None
+    
+    # NOWA ARCHITEKTURA v3.0: SESSION-LEVEL CUMULATIVE PSYCHOLOGY
+    cumulative_psychology: Optional[dict] = None
+    psychology_confidence: Optional[int] = None
+    active_clarifying_questions: Optional[List[dict]] = None
+    customer_archetype: Optional[dict] = None
+    psychology_updated_at: Optional[datetime.datetime] = None
+    
+    # MODUŁ 4: Zaawansowane Wskaźniki Sprzedażowe
+    sales_indicators: Optional[dict] = None
+    
+    # FAZA 1 ULTRA MÓZGU: Pole dla przyszłego Syntezatora
+    holistic_psychometric_profile: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 

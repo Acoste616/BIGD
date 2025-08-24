@@ -219,7 +219,6 @@ class SessionPsychologyEngine:
                     cumulative_psychology=current_profile
                 )
             )
-            await db.commit()
             
             # 5. Uruchom full cycle update
             updated_profile = await self.update_cumulative_profile(session_id, db)
@@ -285,6 +284,19 @@ Jeśli pewność >= 70%, wykonaj natychmiastową syntezę:
 {archetyp_definitions}
 3. Wygeneruj 3 konkretne porady "Rób to / Nie rób tego" specyficzne dla tego archetypu i tego konkretnego klienta
 
+KROK 5 - WSKAŹNIKI SPRZEDAŻOWE (UNIFIED PSYCHOLOGY ENGINE):
+🧠 KRYTYCZNE: Wskaźniki MUSZĄ być w 100% zgodne z archetypem z KROKU 4!
+
+Na podstawie DOKŁADNIE TEGO SAMEGO ARCHETYPU co w kroku 4, przeprowadź analizę 4 wskaźników:
+1. 🌡️ TEMPERATURA ZAKUPOWA (0-100%): Interpretuj zachowanie przez pryzmat archetypu
+   - 🔬 Analityk: Szczegółowe pytania = wysoka temperatura (pozytywne)
+   - 👑 Szybki Decydent: Szczegółowe pytania = wahanie (negatywne)
+2. 🗺️ ETAP PODRÓŻY: Mapuj na typowy proces decyzyjny dla tego archetypu
+3. ⚖️ RYZYKO UTRATY: Oceń przez pryzmat typowych zagrożeń dla tego archetypu  
+4. 💰 POTENCJAŁ: Szacuj wartość typową dla profilu tego archetypu
+
+🎯 SYNERGIA: Wszystkie 4 wskaźniki muszą wzajemnie się uzupełniać i być logicznie spójne z archetypem!
+
 DANE WEJŚCIOWE:
 
 HISTORIA SESJI:
@@ -328,6 +340,39 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
     }},
     "motivation": "Bezpieczeństwo inwestycji i minimalizacja ryzyka",
     "communication_style": "Faktyczny, szczegółowy, oparty na danych"
+  }},
+  "sales_indicators": {{
+    "purchase_temperature": {{
+      "value": 75,
+      "temperature_level": "hot", 
+      "rationale": "Klient zadaje szczegółowe pytania o TCO i finansowanie",
+      "strategy": "Przyspiesz proces - zaproponuj spotkanie w ciągu 48h",
+      "confidence": 85
+    }},
+    "customer_journey_stage": {{
+      "value": "evaluation",
+      "progress_percentage": 70,
+      "next_stage": "decision",
+      "rationale": "Porównuje szczegółowo z konkurencją - typowy etap oceny", 
+      "strategy": "Dostarcz przewagę konkurencyjną i case studies",
+      "confidence": 90
+    }},
+    "churn_risk": {{
+      "value": 25,
+      "risk_level": "low",
+      "risk_factors": ["Długi proces decyzyjny"],
+      "rationale": "Aktywne zaangażowanie, szczegółowe pytania - niskie ryzyko",
+      "strategy": "Utrzymaj regularny kontakt, nie wywieraj presji", 
+      "confidence": 80
+    }},
+    "sales_potential": {{
+      "value": 8000000.0,
+      "probability": 75,
+      "estimated_timeframe": "3-4 tygodnie",
+      "rationale": "Budżet 25M PLN, pozycja CEO - wysokie prawdopodobieństwo",
+      "strategy": "Przygotuj szczegółową propozycję biznesową z ROI",
+      "confidence": 85
+    }}
   }}
 }}
 """
@@ -357,6 +402,10 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
             logger.info(f"🧠 [DEBUG BIG FIVE] {big_five}")
             logger.info(f"🎯 [DEBUG DISC] {disc}")  
             logger.info(f"👤 [DEBUG ARCHETYPE] {archetype}")
+            
+            # MODUŁ 4: Debug sales indicators
+            sales_indicators = parsed_data.get('sales_indicators', {})
+            logger.info(f"📊 [DEBUG INDICATORS] {sales_indicators}")
             
             return parsed_data
             
@@ -418,7 +467,9 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
                 'psychology_confidence': ai_result.get('psychology_confidence', 0),
                 'active_clarifying_questions': interactive_questions,
                 'customer_archetype': ai_result.get('customer_archetype'),
-                'psychology_updated_at': datetime.now()
+                'psychology_updated_at': datetime.now(),
+                # MODUŁ 4: Wskaźniki Sprzedażowe
+                'sales_indicators': ai_result.get('sales_indicators')
             }
             
             await db.execute(
@@ -426,13 +477,169 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
                 .where(Session.id == session_id)
                 .values(**update_data)
             )
-            await db.commit()
             
             logger.info(f"✅ [SESSION UPDATE] Psychology data saved for session {session_id}")
             
         except Exception as e:
             logger.error(f"❌ [SESSION UPDATE] Error updating session {session_id}: {e}")
             raise
+
+    async def update_and_get_psychology(self, session_id: int, db: AsyncSession, ai_service) -> Dict[str, Any]:
+        """
+        NOWA FUNKCJA v4.0: Synchroniczna analiza psychology - fundament Ultra Mózgu
+        
+        Cel: Przekształcenie asynchronicznego zadania w tle w synchroniczną, blokującą funkcję,
+        która zwraca kompletny profil psychometryczny przed generowaniem AI response.
+        
+        Args:
+            session_id: ID sesji do analizy
+            db: Aktywna sesja bazy danych
+            ai_service: Instancja AIService do wywołania analiz
+            
+        Returns:
+            dict: Kompletny profil psychometryczny gotowy do użycia przez AI response
+            
+        Raises:
+            Exception: Gdy nie można wygenerować profilu
+        """
+        try:
+            logger.info(f"🧠 [ULTRA BRAIN] Rozpoczynam synchroniczną analizę psychology dla sesji {session_id}")
+            
+            # KROK 1: Pobierz z bazy danych pełną historię interakcji dla danej sesji
+            query = (
+                select(Session)
+                .options(selectinload(Session.interactions))
+                .where(Session.id == session_id)
+            )
+            result = await db.execute(query)
+            session = result.scalar_one_or_none()
+            
+            if not session:
+                logger.error(f"❌ [ULTRA BRAIN] Session {session_id} not found")
+                return {}
+            
+            # KROK 2: Sformatuj historię rozmowy w jeden, spójny tekst
+            conversation_history = self._build_session_history(session.interactions)
+            logger.info(f"📚 [ULTRA BRAIN] Historia sesji przygotowana ({len(conversation_history)} znaków)")
+            
+            # KROK 3: Pobierz obecny profil z sesji (jeśli istnieje)
+            current_profile = session.cumulative_psychology or {}
+            current_confidence = session.psychology_confidence or 0
+            
+            logger.info(f"🔍 [ULTRA BRAIN] Obecny confidence: {current_confidence}%")
+            
+            # KROK 4: Sekwencyjnie wywołaj analizę AI - jeden wielki prompt zamiast osobnych wywołań
+            ai_prompt = self._build_cumulative_psychology_prompt(
+                history=conversation_history,
+                current_profile=current_profile,
+                confidence=current_confidence
+            )
+            
+            logger.info(f"🤖 [ULTRA BRAIN] Wysyłam prompt do AI ({len(ai_prompt)} znaków)")
+            
+            # Wywołaj AI z pełnym promptem (wszystkie analizy w jednym wywołaniu)
+            ai_response = await ai_service._call_llm_with_retry(
+                system_prompt="Jesteś ekspertem psychologii sprzedaży generującym kompletny profil klienta.",
+                user_prompt=ai_prompt
+            )
+            
+            # KROK 5: Parsuj odpowiedź AI
+            parsed_result = self._parse_psychology_ai_response(ai_response)
+            if not parsed_result:
+                logger.warning(f"⚠️ [ULTRA BRAIN] AI parsing failed, używam fallback")
+                return self._create_fallback_psychology_profile()
+            
+            # KROK 6: Zapisz kompletny profil w bazie danych
+            interactive_questions = self._convert_to_interactive_questions(
+                parsed_result.get('suggested_questions', [])
+            )
+            
+            await self._update_session_psychology(
+                db=db,
+                session_id=session_id,
+                ai_result=parsed_result,
+                interactive_questions=interactive_questions
+            )
+            
+            # KROK 7: Zwróć kompletny profil
+            complete_profile = {
+                'cumulative_psychology': parsed_result.get('cumulative_psychology', {}),
+                'customer_archetype': parsed_result.get('customer_archetype', {}),
+                'psychology_confidence': parsed_result.get('psychology_confidence', 0),
+                'sales_indicators': parsed_result.get('sales_indicators', {}),
+                'active_clarifying_questions': interactive_questions,
+                'analysis_timestamp': datetime.now().isoformat()
+            }
+            
+            logger.info(f"✅ [ULTRA BRAIN] Profil kompletny! Confidence: {complete_profile['psychology_confidence']}%")
+            
+            return complete_profile
+            
+        except Exception as e:
+            logger.error(f"❌ [ULTRA BRAIN] Błąd podczas analizy sesji {session_id}: {e}")
+            # W przypadku błędu, zwróć podstawowy profil
+            return self._create_fallback_psychology_profile()
+
+    def _create_fallback_psychology_profile(self) -> Dict[str, Any]:
+        """Tworzy podstawowy profil psychology gdy AI nie jest dostępny"""
+        return {
+            'cumulative_psychology': {
+                'big_five': {},
+                'disc': {},
+                'schwartz_values': [],
+                'observations_summary': 'Profil będzie aktualizowany w trakcie rozmowy.'
+            },
+            'customer_archetype': {
+                'archetype_key': 'unknown',
+                'archetype_name': '❓ Profil w Trakcie Analizy',
+                'confidence': 0,
+                'description': 'Zbieramy informacje o kliencie...'
+            },
+            'psychology_confidence': 0,
+            'sales_indicators': {},
+            'active_clarifying_questions': [],
+            'analysis_timestamp': datetime.now().isoformat(),
+            'is_fallback': True
+        }
+
+    # DEPRECATED: Stara funkcja - zachowujemy dla backward compatibility
+    async def update_cumulative_profile(self, session_id: int, old_db: Optional[AsyncSession] = None) -> Dict[str, Any]:
+        """
+        @deprecated: Użyj update_and_get_psychology zamiast tej funkcji.
+        
+        STARA FUNKCJA - Background task approach. 
+        Zostaje tylko dla backward compatibility, ale nie jest już wywoływana.
+        """
+        logger.warning("⚠️ [DEPRECATED] update_cumulative_profile jest deprecated. Użyj update_and_get_psychology.")
+        
+        # Zwróć pusty wynik - ta funkcja nie powinna być już używana
+        return {}
+
+    def _build_session_history(self, interactions) -> str:
+        """
+        Formatuje historię sesji w jeden, spójny tekst dla AI
+        
+        Args:
+            interactions: Lista interakcji z sesji
+            
+        Returns:
+            str: Sformatowana historia rozmowy
+        """
+        if not interactions:
+            return "Brak poprzedniej historii rozmowy."
+        
+        history_parts = []
+        for i, interaction in enumerate(interactions, 1):
+            user_input = interaction.user_input or ""
+            timestamp = interaction.timestamp.strftime("%H:%M") if interaction.timestamp else "unknown"
+            
+            # Skróć bardzo długie wypowiedzi
+            if len(user_input) > 500:
+                user_input = user_input[:500] + "..."
+            
+            history_parts.append(f"{i}. [{timestamp}] Sprzedawca: \"{user_input}\"")
+        
+        return "\n".join(history_parts)
 
 # Singleton instance
 session_psychology_engine = SessionPsychologyEngine()

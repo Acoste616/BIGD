@@ -230,10 +230,15 @@ class AIService:
         client_profile: Dict[str, Any],
         session_history: List[Dict[str, Any]],
         session_context: Optional[Dict[str, Any]] = None,
-        mode: str = 'suggestion'
+        mode: str = 'suggestion',
+        session_psychology: Optional[Dict[str, Any]] = None,  # DEPRECATED v4.0: Używaj holistic_profile
+        holistic_profile: Optional[Dict[str, Any]] = None     # NOWY v4.0: DNA Klienta z Syntezatora
     ) -> Dict[str, Any]:
         """
-        Generuj inteligentną analizę sprzedażową dla danej interakcji
+        🧠 ULTRA MÓZG FAZA 2 - GENERATOR STRATEGII (v4.0)
+        
+        Drugi "neuron" Ultra Mózgu - generuje precyzyjne wsparcie taktyczne dla sprzedawcy
+        na podstawie DNA Klienta (holistyczny profil z Syntezatora).
         
         Args:
             user_input: Wejście od sprzedawcy (obserwacje, pytania klienta)
@@ -241,9 +246,11 @@ class AIService:
             session_history: Historia ostatnich interakcji w sesji
             session_context: Dodatkowy kontekst sesji
             mode: Tryb działania ('suggestion' dla sprzedaży, 'training' dla AI Dojo)
+            session_psychology: DEPRECATED - użyj holistic_profile
+            holistic_profile: DNA Klienta - holistyczny profil z Syntezatora (główny input)
             
         Returns:
-            Słownik z pełną analizą zgodną z InteractionResponse schema (suggestion mode)
+            Słownik z analizą strategiczną opartą na DNA Klienta
             lub odpowiedź AI Dojo (training mode)
             
         Raises:
@@ -259,8 +266,25 @@ class AIService:
                 session_context=session_context
             )
         
+        # === ULTRA MÓZG v4.0: DWUETAPOWA ARCHITEKTURA ===
+        # Sprawdź czy mamy holistyczny profil (DNA Klienta) z Syntezatora
+        if holistic_profile and not holistic_profile.get('is_fallback'):
+            # PRAWDZIWY ULTRA MÓZG: używamy DNA Klienta
+            logger.info("🧠⚡ [ULTRA MÓZG] Aktywuję Generator Strategii z DNA Klienta")
+            return await self._run_strategic_generator(
+                user_input=user_input,
+                client_profile=client_profile,
+                holistic_profile=holistic_profile,
+                session_history=session_history,
+                session_context=session_context or {}
+            )
+        elif holistic_profile and holistic_profile.get('is_fallback'):
+            # FALLBACK ULTRA MÓZG: podstawowy profil, dodaj do system prompt
+            logger.info("⚠️ [ULTRA MÓZG] Używam fallback DNA - standardowa analiza z wskazówkami")
+            # Logika zostanie obsłużona w _build_system_prompt przez session_psychology fallback
+        
         # === ISTNIEJĄCA LOGIKA SPRZEDAŻOWA (mode='suggestion') ===
-        # UWAGA: Poniższy kod nie został zmodyfikowany - działa dokładnie tak samo!
+        # UWAGA: Używana gdy brak holistycznego profilu lub tryb fallback
         start_time = datetime.now()
         
         try:
@@ -314,13 +338,14 @@ class AIService:
             # Wygeneruj unikalne ID dla sugestii (Blueprint Feedback Loop)
             suggestion_ids = self._generate_unique_suggestion_ids()
             
-            # Krok 3: Zbuduj wzbogacony prompt systemowy (z wiedzą z RAG)
+            # Krok 3: Zbuduj wzbogacony prompt systemowy (z wiedzą z RAG + Psychology)
             system_prompt = self._build_system_prompt(
                 client_profile=client_profile,
                 session_history=session_history,
                 session_context=session_context or {},
                 knowledge_context=knowledge_context,  # NOWY PARAMETR
-                suggestion_ids=suggestion_ids  # ID dla granularnego feedback
+                suggestion_ids=suggestion_ids,  # ID dla granularnego feedback
+                session_psychology=session_psychology  # NOWY v4.0: Psychology data
             )
             
             # Zbuduj prompt użytkownika
@@ -363,7 +388,8 @@ class AIService:
         session_history: List[Dict[str, Any]],
         session_context: Dict[str, Any],
         knowledge_context: str = "BRAK DODATKOWEGO KONTEKSTU Z BAZY WIEDZY.",
-        suggestion_ids: Optional[Dict[str, str]] = None
+        suggestion_ids: Optional[Dict[str, str]] = None,
+        session_psychology: Optional[Dict[str, Any]] = None  # NOWY v4.0: Psychology data
     ) -> str:
         """
         Zbuduj dynamiczny prompt systemowy dla LLM - NOWA WERSJA PRO-TESLA
@@ -408,7 +434,12 @@ INSTRUKCJE DOTYCZĄCE WIEDZY:
 
 """
         
-        # === WARSTWA 6: KONTEKST ROZMOWY (Dynamiczna część) ===
+        # === WARSTWA 6: ULTRA MÓZG - DNA KLIENTA (v4.0) ===
+        # GENERATOR STRATEGII - logika przeniesiona do głównej funkcji generate_analysis
+        # Ta warstwa obecnie nieużywana - logic w generate_analysis
+        pass
+        
+        # === WARSTWA 7: KONTEKST ROZMOWY (Dynamiczna część) ===
         # Dodaj profil klienta
         if client_profile:
             system_prompt += f"""
@@ -1395,7 +1426,8 @@ Wygeneruj psychologicznie dostosowaną sugerowaną odpowiedź uwzględniając pr
         client_profile: Dict[str, Any],
         session_history: List[Dict[str, Any]],
         session_context: Optional[Dict[str, Any]] = None,
-        session_psychology: Optional[Dict[str, Any]] = None,
+        session_psychology: Optional[Dict[str, Any]] = None,  # DEPRECATED v4.0
+        holistic_profile: Optional[Dict[str, Any]] = None,    # NOWY v4.0: DNA Klienta
         customer_archetype: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -1409,8 +1441,20 @@ Wygeneruj psychologicznie dostosowaną sugerowaną odpowiedź uwzględniając pr
         try:
             logger.info("🎭 [PSYCHOLOGY STRATEGY] Generuję psychology-enhanced analysis...")
             
-            # Jeśli mamy psychology i archetype, użyj enhanced prompta
-            if session_psychology and customer_archetype:
+            # ULTRA MÓZG v4.0: Priorytetyzujemy holistic_profile nad starymi danymi
+            if holistic_profile:
+                logger.info("🧠⚡ [PSYCHOLOGY STRATEGY] Używam Ultra Mózgu z DNA Klienta")
+                return await self.generate_analysis(
+                    user_input=user_input,
+                    client_profile=client_profile, 
+                    session_history=session_history,
+                    session_context=session_context,
+                    session_psychology=session_psychology,  # DEPRECATED ale zachowujemy dla kompatybilności
+                    holistic_profile=holistic_profile       # NOWY v4.0: DNA Klienta
+                )
+            elif session_psychology and customer_archetype:
+                # DEPRECATED: Stara logika z archetyp-enhanced strategy
+                logger.info("⚠️ [PSYCHOLOGY STRATEGY] Fallback: używam archetype-enhanced strategy")
                 return await self._generate_archetype_informed_strategy(
                     user_input, client_profile, session_psychology, customer_archetype
                 )
@@ -1538,6 +1582,328 @@ Wygeneruj odpowiedź w standardowym formacie JSON, ale DOSTOSOWANĄ do archetypu
             "is_fallback": True
         }
 
+    async def _run_holistic_synthesis(self, raw_psychology_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        🧠 ULTRA MÓZG FAZA 2 - SYNTEZATOR PROFILU HOLISTYCZNEGO
+        
+        Przekształca surowe dane psychometryczne w jeden, spójny profil strategiczny.
+        To jest pierwszy "neuron" Ultra Mózgu - głęboka analiza i synteza.
+        
+        Args:
+            raw_psychology_profile: Surowe dane z SessionPsychologyEngine
+            
+        Returns:
+            dict: Holistyczny profil strategyczny - "DNA Klienta"
+        """
+        try:
+            logger.info("🔬 [SYNTEZATOR] Rozpoczynam syntezę holistycznego profilu klienta...")
+            
+            # Przygotuj dane wejściowe do syntezy
+            profile_json = json.dumps(raw_psychology_profile, ensure_ascii=False, indent=2)
+            
+            # PROMPT SYNTEZY - Światowej klasy psycholog biznesu
+            synthesis_prompt = f"""
+Jesteś światowej klasy psychologiem biznesu i analitykiem behawioralnym. Twoim zadaniem jest synteza surowych danych z wielu testów psychometrycznych w jeden, spójny i użyteczny profil strategiczny.
+
+Przeanalizuj poniższe dane. Zidentyfikuj kluczowe wzorce, synergie i potencjalne sprzeczności. Twoim celem jest stworzenie skondensowanego "DNA Klienta", które posłuży strategowi sprzedaży do podjęcia dalszych działań.
+
+SUROWE DANE PSYCHOMETRYCZNE:
+{profile_json}
+
+Zwróć odpowiedź wyłącznie w formacie JSON o następującej strukturze:
+
+{{
+  "holistic_summary": "Jednozdaniowe, esencjonalne podsumowanie klienta, np. 'Analityczny decydent motywowany statusem i bezpieczeństwem, nieufny wobec emocjonalnych argumentów.'",
+  "main_drive": "Główny, podświadomy motor napędowy klienta, np. 'Unikanie ryzyka', 'Dążenie do dominacji', 'Potrzeba akceptacji'",
+  "communication_style": {{
+    "recommended_tone": "np. 'Formalny, oparty na danych, zwięzły'",
+    "keywords_to_use": ["np. 'dowód', 'gwarancja', 'efektywność', 'plan'"],
+    "keywords_to_avoid": ["np. 'uczucie', 'wyobraź sobie', 'zaufaj mi'"]
+  }},
+  "key_levers": ["Dwie lub trzy najważniejsze 'dźwignie' psychologiczne, na które należy nacisnąć, np. 'Odwołanie do statusu eksperta', 'Podkreślenie bezpieczeństwa inwestycji'"],
+  "red_flags": ["Czego absolutnie unikać w kontakcie, np. 'Pospieszania decyzji', 'Stosowania nieformalnego języka', 'Podważania jego wiedzy'"],
+  "missing_data_gaps": "Jakich kluczowych informacji brakuje, aby ten profil był pełniejszy? Sformułuj to jako cel dla sprzedawcy, np. 'Należy zidentyfikować jego osobisty stosunek do ryzyka finansowego.'"
+}}
+
+KRYTYCZNE: Zwróć WYŁĄCZNIE poprawny JSON bez dodatkowego tekstu.
+"""
+            
+            # Wywołaj AI z promptem syntezy
+            logger.info("🤖 [SYNTEZATOR] Wysyłam dane do AI w celu syntezy...")
+            ai_response = await self._call_llm_with_retry(
+                system_prompt="Jesteś ekspertem syntezy profili psychologicznych.",
+                user_prompt=synthesis_prompt
+            )
+            
+            # Parsuj odpowiedź AI
+            logger.info("📊 [SYNTEZATOR] Parsowanie odpowiedzi AI...")
+            holistic_profile = self._parse_holistic_synthesis_response(ai_response)
+            
+            if not holistic_profile:
+                logger.warning("⚠️ [SYNTEZATOR] Parsowanie nie powiodło się, używam fallback")
+                holistic_profile = self._create_fallback_holistic_profile(raw_psychology_profile)
+            
+            logger.info(f"✅ [SYNTEZATOR] Synteza holistyczna ukończona! Główny drive: {holistic_profile.get('main_drive', 'Unknown')}")
+            
+            return holistic_profile
+            
+        except Exception as e:
+            logger.error(f"❌ [SYNTEZATOR] Błąd podczas syntezy holistycznej: {e}")
+            return self._create_fallback_holistic_profile(raw_psychology_profile)
+
+    def _parse_holistic_synthesis_response(self, ai_response: str) -> Optional[Dict[str, Any]]:
+        """Parsuje odpowiedź AI z syntezy holistycznej"""
+        try:
+            # Znajdź JSON w odpowiedzi
+            start_idx = ai_response.find('{')
+            end_idx = ai_response.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx <= start_idx:
+                logger.warning("⚠️ [SYNTEZATOR PARSER] Brak JSON w odpowiedzi AI")
+                return None
+                
+            json_str = ai_response[start_idx:end_idx]
+            parsed_data = json.loads(json_str)
+            
+            # Waliduj wymagane pola
+            required_fields = ['holistic_summary', 'main_drive', 'communication_style', 'key_levers', 'red_flags']
+            for field in required_fields:
+                if field not in parsed_data:
+                    logger.warning(f"⚠️ [SYNTEZATOR PARSER] Brakuje pola: {field}")
+                    return None
+            
+            logger.info("✅ [SYNTEZATOR PARSER] JSON parsed successfully")
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ [SYNTEZATOR PARSER] JSON decode error: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ [SYNTEZATOR PARSER] Unexpected error: {e}")
+            return None
+
+    def _create_fallback_holistic_profile(self, raw_psychology_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Tworzy podstawowy profil holistyczny gdy AI nie jest dostępny"""
+        
+        # Spróbuj wyciągnąć podstawowe informacje z raw profile
+        archetype = raw_psychology_profile.get('customer_archetype', {})
+        archetype_name = archetype.get('archetype_name', '❓ Profil w Trakcie Analizy')
+        confidence = raw_psychology_profile.get('psychology_confidence', 0)
+        
+        return {
+            "holistic_summary": f"Klient typu {archetype_name} z {confidence}% poziomem pewności profilu. Analiza wymaga więcej danych.",
+            "main_drive": "Potrzeba zrozumienia i kontroli sytuacji zakupowej",
+            "communication_style": {
+                "recommended_tone": "Profesjonalny, oparty na faktach, cierpliwy",
+                "keywords_to_use": ["informacje", "opcje", "korzyści", "rozwiązanie"],
+                "keywords_to_avoid": ["pośpiech", "presja", "ograniczona oferta"]
+            },
+            "key_levers": [
+                "Dostarczenie szczegółowych informacji",
+                "Budowanie zaufania przez transparentność",
+                "Pokazanie konkretnych korzyści"
+            ],
+            "red_flags": [
+                "Wywieranie presji czasowej",
+                "Pomijanie pytań klienta",
+                "Zbyt agresywne podejście sprzedażowe"
+            ],
+            "missing_data_gaps": "Potrzeba więcej informacji o motywacjach, preferencjach komunikacyjnych i procesie podejmowania decyzji klienta.",
+            "is_fallback": True,
+            "fallback_reason": "AI synthesis unavailable"
+        }
+
+    async def _run_strategic_generator(
+        self,
+        user_input: str,
+        client_profile: Dict[str, Any],
+        holistic_profile: Dict[str, Any],
+        session_history: List[Dict[str, Any]],
+        session_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        ⚡ ULTRA MÓZG FAZA 2 - GENERATOR STRATEGII
+        
+        Drugi "neuron" Ultra Mózgu - generuje precyzyjne wsparcie taktyczne
+        na podstawie DNA Klienta (holistic_profile).
+        
+        Args:
+            user_input: Ostatnia wypowiedź/obserwacja sprzedawcy
+            client_profile: Podstawowe dane klienta
+            holistic_profile: DNA Klienta z Syntezatora
+            session_history: Historia rozmowy
+            session_context: Kontekst sesji
+            
+        Returns:
+            dict: Strategiczna odpowiedź w formacie InteractionResponse
+        """
+        try:
+            logger.info("⚡ [GENERATOR STRATEGII] Rozpoczynam generację strategii na podstawie DNA...")
+            
+            # Przygotuj DNA Klienta do analizy
+            dna_json = json.dumps(holistic_profile, ensure_ascii=False, indent=2)
+            
+            # Historia rozmowy w czytelnym formacie
+            history_str = self._format_session_history_for_strategy(session_history)
+            
+            # PROMPT STRATEGICZNY - Elitarny co-pilot sprzedaży
+            strategic_prompt = f"""
+Jesteś elitarnym co-pilotem sprzedaży Tesla. Otrzymałeś kompletne DNA klienta. Twoim zadaniem jest, na podstawie tego profilu oraz ostatniej wypowiedzi klienta, wygenerować natychmiastowe, taktyczne wsparcie dla sprzedawcy.
+
+DNA KLIENTA (PROFIL HOLISTYCZNY):
+{dna_json}
+
+HISTORIA ROZMOWY:
+{history_str}
+
+OSTATNIA WYPOWIEDŹ SPRZEDAWCY:
+"{user_input}"
+
+Na podstawie powyższego DNA Klienta oraz ostatniej wypowiedzi, wygeneruj odpowiedź wyłącznie w formacie JSON o następującej strukturze:
+
+{{
+  "main_analysis": "Krótka analiza sytuacji na podstawie DNA klienta i wypowiedzi",
+  "client_archetype": "Nazwa archetypu z DNA",
+  "confidence_level": 85,
+  "sentiment_score": 7,
+  "potential_score": 8,
+  "urgency_level": "medium",
+  "next_best_action": "Konkretna akcja dla sprzedawcy oparta na DNA",
+  "quick_response": {{
+    "id": "qr_xyz123",
+    "text": "Sugerowana odpowiedź dopasowana do communication_style z DNA"
+  }},
+  "suggested_questions": [
+    {{
+      "id": "sq_abc123", 
+      "text": "Pytanie które wykorzystuje key_levers z DNA i unika red_flags"
+    }}
+  ],
+  "strategic_recommendation": "Rekomendacja strategiczna na ten moment rozmowy, oparta na main_drive z DNA",
+  "proactive_guidance": {{
+    "for_client": "Pytanie do klienta które pomoże wypełnić missing_data_gaps z DNA",
+    "for_user": "Pytanie do sprzedawcy o obserwacje klienta"
+  }},
+  "strategic_notes": [
+    "Kluczowy insight oparty na DNA klienta",
+    "Druga strategiczna obserwacja z holistic_summary"
+  ]
+}}
+
+KLUCZOWE ZASADY:
+1. UŻYJ main_drive z DNA jako głównej motywacji w odpowiedzi
+2. ZASTOSUJ communication_style (tone, keywords_to_use, unikaj keywords_to_avoid)  
+3. WYKORZYSTAJ key_levers jako główne argumenty
+4. UNIKAJ red_flags za wszelką cenę
+5. WYPEŁNIJ missing_data_gaps przez proactive_guidance
+
+KRYTYCZNE: Zwróć WYŁĄCZNIE poprawny JSON bez dodatkowego tekstu.
+"""
+            
+            # Wywołaj AI z promptem strategicznym
+            logger.info("🤖 [GENERATOR STRATEGII] Wysyłam DNA + kontekst do AI...")
+            ai_response = await self._call_llm_with_retry(
+                system_prompt="Jesteś elitarnym co-pilotem sprzedaży Tesla używającym DNA klienta.",
+                user_prompt=strategic_prompt
+            )
+            
+            # Parsuj odpowiedź AI  
+            logger.info("📊 [GENERATOR STRATEGII] Parsowanie strategicznej odpowiedzi...")
+            strategic_analysis = self._parse_strategic_response(ai_response)
+            
+            if not strategic_analysis:
+                logger.warning("⚠️ [GENERATOR STRATEGII] Parsowanie nie powiodło się, używam fallback")
+                strategic_analysis = self._create_strategic_fallback(user_input, holistic_profile)
+            
+            logger.info(f"✅ [GENERATOR STRATEGII] Strategia gotowa! Action: {strategic_analysis.get('next_best_action', 'Unknown')}")
+            
+            return strategic_analysis
+            
+        except Exception as e:
+            logger.error(f"❌ [GENERATOR STRATEGII] Błąd podczas generacji strategii: {e}")
+            return self._create_strategic_fallback(user_input, holistic_profile)
+
+    def _format_session_history_for_strategy(self, session_history: List[Dict[str, Any]]) -> str:
+        """Formatuje historię sesji dla promptu strategicznego"""
+        if not session_history:
+            return "Brak poprzedniej historii rozmowy."
+        
+        history_parts = []
+        for i, interaction in enumerate(session_history[-3:], 1):  # Ostatnie 3 interakcje
+            user_input = interaction.get('user_input', '')[:200]  # Skróć długie teksty
+            timestamp = interaction.get('timestamp', 'nieznany czas')
+            history_parts.append(f"{i}. [{timestamp}] Sprzedawca: \"{user_input}\"")
+        
+        return "\n".join(history_parts)
+
+    def _parse_strategic_response(self, ai_response: str) -> Optional[Dict[str, Any]]:
+        """Parsuje odpowiedź AI z generatora strategii"""
+        try:
+            # Znajdź JSON w odpowiedzi
+            start_idx = ai_response.find('{')
+            end_idx = ai_response.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx <= start_idx:
+                logger.warning("⚠️ [STRATEGY PARSER] Brak JSON w odpowiedzi AI")
+                return None
+                
+            json_str = ai_response[start_idx:end_idx]
+            parsed_data = json.loads(json_str)
+            
+            # Waliduj wymagane pola dla InteractionResponse
+            required_fields = [
+                'main_analysis', 'client_archetype', 'confidence_level',
+                'sentiment_score', 'potential_score', 'urgency_level', 'next_best_action'
+            ]
+            for field in required_fields:
+                if field not in parsed_data:
+                    logger.warning(f"⚠️ [STRATEGY PARSER] Brakuje pola: {field}")
+                    return None
+            
+            logger.info("✅ [STRATEGY PARSER] Strategiczna odpowiedź sparsowana")
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ [STRATEGY PARSER] JSON decode error: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ [STRATEGY PARSER] Unexpected error: {e}")
+            return None
+
+    def _create_strategic_fallback(self, user_input: str, holistic_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Tworzy fallback odpowiedź strategiczną gdy AI nie jest dostępny"""
+        
+        # Wyciągnij podstawowe info z DNA
+        main_drive = holistic_profile.get('main_drive', 'Potrzeba zrozumienia sytuacji')
+        archetype_name = holistic_profile.get('holistic_summary', 'Klient w trakcie analizy')
+        
+        return {
+            "main_analysis": f"Analizuję sytuację na podstawie DNA klienta. Główny drive: {main_drive}",
+            "client_archetype": archetype_name,
+            "confidence_level": 50,
+            "sentiment_score": 6,
+            "potential_score": 7,
+            "urgency_level": "medium",
+            "next_best_action": "Kontynuuj budowanie zaufania i zbieranie informacji o potrzebach klienta",
+            "quick_response": {
+                "id": f"qr_{uuid.uuid4().hex[:6]}",
+                "text": "Rozumiem. Czy mógłby Pan powiedzieć więcej o swoich oczekiwaniach?"
+            },
+            "suggested_questions": [
+                {
+                    "id": f"sq_{uuid.uuid4().hex[:6]}",
+                    "text": "Jakie są najważniejsze kryteria w Pana decyzji?"
+                }
+            ],
+            "strategic_recommendation": "Skup się na budowaniu zaufania i zrozumieniu potrzeb klienta.",
+            "strategic_notes": [
+                "Klient wymaga cierpliwego podejścia",
+                "Potrzebne więcej informacji o motywacjach"
+            ],
+            "is_fallback": True,
+            "fallback_reason": "Strategic AI generator unavailable"
+        }
+
 
 # Import Qdrant service for singleton creation
 from .qdrant_service import qdrant_service
@@ -1552,7 +1918,8 @@ async def generate_sales_analysis(
     client_profile: Dict[str, Any],
     session_history: List[Dict[str, Any]],
     session_context: Optional[Dict[str, Any]] = None,
-    session_psychology: Optional[Dict[str, Any]] = None,  # NOWY v3.0: Psychology z sesji
+    session_psychology: Optional[Dict[str, Any]] = None,  # DEPRECATED v4.0: Używaj holistic_profile
+    holistic_profile: Optional[Dict[str, Any]] = None,    # NOWY v4.0: DNA Klienta z Syntezatora
     customer_archetype: Optional[Dict[str, Any]] = None   # NOWY v3.0: Archetyp klienta
 ) -> Dict[str, Any]:
     """
@@ -1566,7 +1933,8 @@ async def generate_sales_analysis(
         client_profile=client_profile,
         session_history=session_history,
         session_context=session_context,
-        session_psychology=session_psychology,
+        session_psychology=session_psychology,  # DEPRECATED v4.0
+        holistic_profile=holistic_profile,      # NOWY v4.0: DNA Klienta
         customer_archetype=customer_archetype
     )
 

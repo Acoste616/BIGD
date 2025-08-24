@@ -92,7 +92,10 @@ export const createInteraction = async (sessionId, interactionData) => {
     ...interactionData
   };
   
-  return await apiClient.post(`/sessions/${sessionId}/interactions/`, requestData);
+  // 🧠⚡ Ultra Mózg potrzebuje więcej czasu na przetwarzanie (Synteza + Strategia)
+  return await apiClient.post(`/sessions/${sessionId}/interactions/`, requestData, {
+    timeout: 60000 // 60 sekund dla Ultra Mózgu
+  });
 };
 
 /**

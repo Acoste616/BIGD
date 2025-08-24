@@ -47,6 +47,9 @@ export const usePsychometrics = (interactionId, options = {}) => {
                 psychology_confidence: psychologyConfidence,
                 active_clarifying_questions: activeClarifyingQuestions,
                 
+                // MODUŁ 4: Sales indicators
+                sales_indicators: session?.sales_indicators || null,
+                
                 // Backwards compatibility z interaction-level data
                 ...sessionPsychology,  // Spread session psychology jako główne dane
                 
@@ -56,11 +59,13 @@ export const usePsychometrics = (interactionId, options = {}) => {
                 analysis_confidence: psychologyConfidence
             };
             
-            console.log('usePsychometrics v3.0 - session psychology:', sessionPsychology);
-            console.log('usePsychometrics v3.0 - customer archetype:', customerArchetype);
-            console.log('usePsychometrics v3.0 - combined data:', combinedData);
-            console.log('usePsychometrics v3.0 - confidence:', psychologyConfidence);
-            console.log('usePsychometrics v3.0 - attempts:', attempts + 1);
+            // DEBUG: Streamlined logging
+            if (session?.sales_indicators) {
+                console.log('📊 Sales Indicators Generated:', Object.keys(session.sales_indicators));
+            }
+            if (psychologyConfidence > 0) {
+                console.log('🧠 Psychology Confidence:', `${psychologyConfidence}%`);
+            }
             
             setAnalysisData(combinedData);
             setAttempts(prev => prev + 1);

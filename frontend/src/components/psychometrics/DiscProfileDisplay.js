@@ -38,14 +38,18 @@ const discTraitConfig = {
 
 // Komponent pojedynczego paska DISC
 const DiscBar = ({ traitKey, trait, config }) => {
-    const percentage = (trait.score / 10) * 100;
+    // 🔧 NAPRAWA: Zabezpieczenie przed null trait
+    const score = (trait && trait.score) || 0;
+    const rationale = (trait && trait.rationale) || 'Brak danych - analiza w toku';
+    const strategy = (trait && trait.strategy) || 'Strategia będzie dostępna po analizie';
+    const percentage = (score / 10) * 100;
     
     return (
         <Tooltip 
             title={
                 <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        {config.icon} {config.label}: {trait.score}/10
+                        {config.icon} {config.label}: {score}/10
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>
                         {config.description}
@@ -54,13 +58,13 @@ const DiscBar = ({ traitKey, trait, config }) => {
                         <strong>Uzasadnienie AI:</strong>
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 2, fontSize: '0.85rem' }}>
-                        {trait.rationale}
+                        {rationale}
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'lightgreen', fontWeight: 'bold' }}>
                         💡 Strategia Sprzedażowa:
                     </Typography>
                     <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                        {trait.strategy}
+                        {strategy}
                     </Typography>
                 </Box>
             }
@@ -94,7 +98,7 @@ const DiscBar = ({ traitKey, trait, config }) => {
                         fontWeight="bold"
                         color={`${config.color}.main`}
                     >
-                        {trait.score}/10
+                        {score}/10
                     </Typography>
                 </Box>
                 
@@ -133,10 +137,11 @@ const DiscProfileDisplay = ({ data }) => {
     // Znajdź dominujący styl DISC
     const dominantTrait = React.useMemo(() => {
         const traits = Object.entries(data);
-        return traits.reduce((max, [key, trait]) => 
-            trait.score > max.score ? { key, ...trait } : max, 
-            { score: 0 }
-        );
+        return traits.reduce((max, [key, trait]) => {
+            // 🔧 NAPRAWA: Sprawdź czy trait nie jest null
+            const score = (trait && trait.score) || 0;
+            return score > max.score ? { key, score, ...trait } : max;
+        }, { score: 0 });
     }, [data]);
 
     return (

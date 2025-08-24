@@ -6,7 +6,7 @@ import axios from 'axios';
 
 // Domyślna konfiguracja - używamy zmiennych środowiskowych React
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api/v1';
-const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000;
+const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT) || 45000; // 45s dla Ultra Mózgu
 
 // Tworzymy główną instancję axios
 const apiClient = axios.create({

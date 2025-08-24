@@ -43,7 +43,8 @@ import {
 import { getKnowledgeList } from '../../services/knowledgeApi';
 import PsychometricDashboard from '../psychometrics/PsychometricDashboard';
 import CustomerArchetypeDisplay from '../psychometrics/CustomerArchetypeDisplay';
-import { usePsychometrics } from '../../hooks/usePsychometrics';
+import SalesIndicatorsDashboard from '../indicators/SalesIndicatorsDashboard';
+import { useUltraBrain } from '../../hooks/useUltraBrain';  // ULTRA MÓZG v4.0
 
 const StrategicPanel = ({ 
   archetypes = [], 
@@ -56,37 +57,41 @@ const StrategicPanel = ({
   const [loadingKnowledge, setLoadingKnowledge] = useState(false);
   const [expandedAccordion, setExpandedAccordion] = useState('psychometric'); // Domyślnie otwórz psychometric
 
-  // Hook do analizy psychometrycznej (Moduł 2)
-  const { 
-    analysisData, 
-    loading: psychometricLoading, 
-    hasData: hasPsychometricData,
-    error: psychometricError,
-    isPolling,
-    attempts,
-    maxAttempts
-  } = usePsychometrics(currentInteractionId, { 
+  // 🧠⚡ ULTRA MÓZG zastępuje usePsychometrics - wszystkie dane z jednego źródła
+
+  // 🧠⚡ ULTRA MÓZG v4.0: CENTRALNE ŹRÓDŁO PRAWDY ===
+  const {
+    dnaKlienta,
+    strategia,
+    surowePsychology,
+    isDnaReady,
+    isStrategiaReady,
+    isUltraBrainReady,
+    confidence: ultraBrainConfidence,
+    legacy: ultraBrainLegacy,
+    loading: ultraBrainLoading,
+    error: ultraBrainError,
+    isPolling: ultraBrainPolling,
+    getArchetypeName,
+    getMainDrive,
+    getCommunicationStyle,
+    getKeyLevers,
+    getRedFlags,
+    getStrategicRecommendation,
+    getQuickResponse,
+    getSuggestedQuestions,
+    getProactiveGuidance
+  } = useUltraBrain(currentInteractionId, {
     autoFetch: !!currentInteractionId,
-    enablePolling: true  // KROK 2: Włącz polling
+    enablePolling: true,
+    debug: true  // 🔧 WŁĄCZ debug dla diagnozy
   });
 
-  // 🔍 SZCZEGÓŁOWY DEBUG dla StrategicPanel
-  console.log('StrategicPanel - currentInteractionId:', currentInteractionId);
-  if (analysisData) {
-    console.log('🔍 [STRATEGIC] analysisData KEYS:', Object.keys(analysisData));
-    console.log('🔍 [STRATEGIC] customer_archetype:', analysisData?.customer_archetype);
-    console.log('🔍 [STRATEGIC] psychology_confidence:', analysisData?.psychology_confidence);
-    console.log('🔍 [STRATEGIC] cumulative_psychology exists:', !!analysisData?.cumulative_psychology);
-    if (analysisData?.cumulative_psychology) {
-      console.log('🔍 [STRATEGIC] cumulative_psychology KEYS:', Object.keys(analysisData.cumulative_psychology));
-      console.log('🔍 [STRATEGIC] big_five structure:', analysisData.cumulative_psychology.big_five);
-      console.log('🔍 [STRATEGIC] disc structure:', analysisData.cumulative_psychology.disc);
-      console.log('🔍 [STRATEGIC] schwartz structure:', analysisData.cumulative_psychology.schwartz_values);
-    }
-  }
-  console.log('StrategicPanel - psychometricLoading:', psychometricLoading);
-  console.log('StrategicPanel - hasPsychometricData:', hasPsychometricData);
-  console.log('StrategicPanel - psychometricError:', psychometricError);
+  // 🧠⚡ ULTRA MÓZG - TYLKO JEDNA CENTRALNA PRAWDA
+  const activeData = ultraBrainLegacy.analysisData;  // Dla kompatybilności z wykresami
+  const activeArchetype = getArchetypeName();
+  const activeConfidence = ultraBrainConfidence;
+  const activeLoading = ultraBrainLoading || isLoading;
 
   // Handler dla odpowiedzi na pytania pomocnicze
   const handleClarificationAnswered = (questionId, selectedOption, clarifyingAnswer) => {
@@ -191,12 +196,141 @@ const StrategicPanel = ({
 
       {/* Content */}
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>
-        {/* ETAP 5 v3.0: Customer Archetype Display - NAJWAŻNIEJSZY KOMPONENT NA GÓRZE */}
+        {/* 🧠⚡ ULTRA MÓZG v4.0: REKOMENDACJE TAKTYCZNE - NAJWYŻSZY PRIORYTET */}
+        {isStrategiaReady && (
+          <Paper
+            elevation={3}
+            sx={{ 
+              p: 2, 
+              mb: 2, 
+              background: 'linear-gradient(145deg, #e3f2fd 0%, #f3e5f5 100%)',
+              border: '2px solid #2196f3',
+              position: 'relative'
+            }}
+          >
+            {/* Badge dla Ultra Mózgu */}
+            <Box sx={{ position: 'absolute', top: -8, right: 16 }}>
+              <Chip 
+                label="🧠⚡ ULTRA MÓZG" 
+                size="small" 
+                color="primary" 
+                sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
+              />
+            </Box>
+            
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              ⚡ Rekomendacje Taktyczne
+              <Badge badgeContent={activeConfidence.toFixed(0) + '%'} color="success" />
+            </Typography>
+            
+            {/* Strategic Recommendation */}
+            <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1, borderLeft: '4px solid #1976d2' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main', mb: 0.5 }}>
+                🎯 Strategia na Ten Moment:
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+                {getStrategicRecommendation()}
+              </Typography>
+            </Box>
+            
+            {/* Quick Response */}
+            <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(46, 125, 50, 0.08)', borderRadius: 1, borderLeft: '4px solid #2e7d32' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.main', mb: 0.5 }}>
+                💬 Sugerowana Odpowiedź:
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.5, fontStyle: 'italic' }}>
+                "{getQuickResponse()}"
+              </Typography>
+            </Box>
+            
+            {/* Suggested Questions */}
+            {getSuggestedQuestions().length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'warning.main', mb: 1 }}>
+                  ❓ Pytania Pogłębiające:
+                </Typography>
+                <Stack spacing={0.5}>
+                  {getSuggestedQuestions().slice(0, 3).map((question, index) => (
+                    <Chip 
+                      key={question.id || index}
+                      label={question.text}
+                      variant="outlined"
+                      size="small"
+                      sx={{ 
+                        justifyContent: 'flex-start', 
+                        fontSize: '0.8rem',
+                        '& .MuiChip-label': { textAlign: 'left', whiteSpace: 'normal' }
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            )}
+            
+            {/* Proactive Guidance */}
+            {getProactiveGuidance().for_client && (
+              <Box sx={{ p: 1, bgcolor: 'rgba(156, 39, 176, 0.08)', borderRadius: 1, borderLeft: '4px solid #9c27b0' }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'secondary.main', textTransform: 'uppercase' }}>
+                  🔮 Proaktywne Wskazówki:
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.85rem', mt: 0.5 }}>
+                  {getProactiveGuidance().for_client}
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        )}
+
+        {/* ETAP 5 v3.0: Customer Archetype Display - DRUGI W HIERARCHII */}
         <CustomerArchetypeDisplay 
-          customerArchetype={analysisData?.customer_archetype}
-          psychologyConfidence={analysisData?.psychology_confidence || 0}
-          loading={psychometricLoading}
+          customerArchetype={activeArchetype}
+          psychologyConfidence={activeConfidence}
+          loading={activeLoading}
+          dnaKlienta={dnaKlienta}  // NOWY PROP dla Ultra Mózgu
+          isDnaReady={isDnaReady}  // NOWY PROP
         />
+
+        {/* MODUŁ 4: Zaawansowane Wskaźniki Sprzedażowe - ULTRA MÓZG v4.0 */}
+        {activeData?.sales_indicators && (
+          <Accordion 
+            expanded={expandedAccordion === 'indicators'} 
+            onChange={handleAccordionChange('indicators')}
+            elevation={1}
+            sx={{ mb: 1 }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AssessmentIcon color="secondary" fontSize="small" />
+                📊 Wskaźniki Sprzedażowe
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                  (Temperatura • Etap • Ryzyko • Potencjał)
+                </Typography>
+                <Badge 
+                  badgeContent={isUltraBrainReady ? "🧠⚡" : "AI"} 
+                  color={isUltraBrainReady ? "primary" : "secondary"} 
+                />
+                {activeLoading && (
+                  <Badge badgeContent="..." color="info" />
+                )}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <Box sx={{ width: '100%' }}>
+                <SalesIndicatorsDashboard
+                  indicatorsData={activeData?.sales_indicators}
+                  customerArchetype={activeArchetype}
+                  psychologyConfidence={activeConfidence}
+                  cumulativePsychology={activeData?.cumulative_psychology}
+                  loading={activeLoading}
+                  // NOWE PROPSY dla Ultra Mózgu
+                  dnaKlienta={dnaKlienta}
+                  isDnaReady={isDnaReady}
+                  strategia={strategia}
+                />
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+        )}
         
         {/* Sekcja Archetypów */}
         <Accordion 
@@ -291,25 +425,25 @@ const StrategicPanel = ({
               <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                 (Wykresy radarowe, Interactive Q&A)
               </Typography>
-              {hasPsychometricData && (
-                <Badge badgeContent="AI" color="secondary" />
+              {isDnaReady && (
+                <Badge badgeContent="🧠⚡ ULTRA MÓZG" color="secondary" />
               )}
-              {psychometricLoading && (
+              {ultraBrainLoading && (
                 <Badge badgeContent="..." color="info" />
               )}
-              {isPolling && (
-                <Badge badgeContent={`${attempts}/${maxAttempts}`} color="warning" />
+              {ultraBrainPolling && (
+                <Badge badgeContent="🔄 POLLING" color="warning" />
               )}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ p: 0 }}>
             <Box sx={{ width: '100%' }}>
               <PsychometricDashboard 
-                analysisData={analysisData} 
-                loading={psychometricLoading}
-                isPolling={isPolling}
-                attempts={attempts}
-                maxAttempts={maxAttempts}
+                analysisData={activeData} 
+                surowePsychology={surowePsychology}
+                isUltraBrainReady={isUltraBrainReady}
+                loading={activeLoading}
+                isPolling={ultraBrainPolling}
                 interactionId={currentInteractionId}
                 onClarificationAnswered={handleClarificationAnswered}
               />
@@ -317,7 +451,9 @@ const StrategicPanel = ({
           </AccordionDetails>
         </Accordion>
 
-        {/* Sekcja Strategic Insights */}
+
+
+        {/* 🧠⚡ ULTRA MÓZG v4.0: Strategic Insights - DNA KLIENTA */}
         <Accordion 
           expanded={expandedAccordion === 'insights'} 
           onChange={handleAccordionChange('insights')}
@@ -326,34 +462,111 @@ const StrategicPanel = ({
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
               <LightbulbIcon color="warning" fontSize="small" />
-              Strategic Insights
-              {insights.length > 0 && (
-                <Badge badgeContent={insights.length} color="warning" />
+              Strategic Insights - DNA Klienta
+              {isDnaReady && (
+                <Badge badgeContent="🧬 DNA" color="primary" />
               )}
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            {insights.length === 0 ? (
+            {!isDnaReady ? (
               <Alert severity="info" sx={{ fontSize: '0.875rem' }}>
-                AI insights will appear here as you interact with customers
+                Ultra Mózg analizuje profil psychologiczny klienta... DNA zostanie wygenerowane wkrótce.
               </Alert>
             ) : (
-              <List dense>
-                {insights.slice(0, 5).map((insight, index) => (
-                  <ListItem key={index} sx={{ px: 0 }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <StarIcon color="warning" fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={insight}
-                      primaryTypographyProps={{ 
-                        fontSize: '0.875rem',
-                        fontWeight: 500
-                      }}
-                    />
-                  </ListItem>
-                ))}
-              </List>
+              <Stack spacing={2}>
+                {/* Main Drive */}
+                <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'primary.lighter' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    🎯 Główny Motor Napędowy:
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                    {getMainDrive()}
+                  </Typography>
+                </Paper>
+                
+                {/* Communication Style */}
+                {getCommunicationStyle().recommended_tone && (
+                  <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'success.lighter' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'success.main', mb: 1 }}>
+                      💬 Styl Komunikacji:
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1, fontSize: '0.85rem' }}>
+                      <strong>Ton:</strong> {getCommunicationStyle().recommended_tone}
+                    </Typography>
+                    
+                    {getCommunicationStyle().keywords_to_use?.length > 0 && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.dark' }}>
+                          ✅ UŻYWAJ:
+                        </Typography>
+                        <Box sx={{ mt: 0.5 }}>
+                          {getCommunicationStyle().keywords_to_use.map((keyword, i) => (
+                            <Chip key={i} label={keyword} size="small" variant="outlined" color="success" sx={{ m: 0.25, fontSize: '0.7rem' }} />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                    
+                    {getCommunicationStyle().keywords_to_avoid?.length > 0 && (
+                      <Box>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'error.main' }}>
+                          ❌ UNIKAJ:
+                        </Typography>
+                        <Box sx={{ mt: 0.5 }}>
+                          {getCommunicationStyle().keywords_to_avoid.map((keyword, i) => (
+                            <Chip key={i} label={keyword} size="small" variant="outlined" color="error" sx={{ m: 0.25, fontSize: '0.7rem' }} />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                  </Paper>
+                )}
+                
+                {/* Key Levers */}
+                {getKeyLevers().length > 0 && (
+                  <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'warning.lighter' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'warning.main', mb: 1 }}>
+                      🔑 Kluczowe Dźwignie:
+                    </Typography>
+                    <List dense>
+                      {getKeyLevers().map((lever, index) => (
+                        <ListItem key={index} sx={{ px: 0, py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 24 }}>
+                            <Typography sx={{ fontSize: '0.9rem' }}>⚡</Typography>
+                          </ListItemIcon>
+                          <ListItemText 
+                            primary={lever}
+                            primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Paper>
+                )}
+                
+                {/* Red Flags */}
+                {getRedFlags().length > 0 && (
+                  <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'error.lighter' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'error.main', mb: 1 }}>
+                      🚩 Czerwone Flagi:
+                    </Typography>
+                    <List dense>
+                      {getRedFlags().map((flag, index) => (
+                        <ListItem key={index} sx={{ px: 0, py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 24 }}>
+                            <Typography sx={{ fontSize: '0.9rem' }}>⚠️</Typography>
+                          </ListItemIcon>
+                          <ListItemText 
+                            primary={flag}
+                            primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Paper>
+                )}
+              </Stack>
             )}
           </AccordionDetails>
         </Accordion>

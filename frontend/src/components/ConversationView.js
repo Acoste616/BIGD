@@ -414,20 +414,7 @@ Przygotuj dane w formacie JSON gotowym do zapisu.`,
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                   <Chip label={`${interactions.length} interakcji`} color="primary" variant="outlined" />
-                  {currentSession && (
-                    <Chip 
-                      label={`Sentiment: ${currentSession.sentiment_score || 'N/A'}/10`} 
-                      color="info" 
-                      variant="outlined" 
-                    />
-                  )}
-                  {currentSession && (
-                    <Chip 
-                      label={`Potencjał: ${currentSession.potential_score || 'N/A'}/10`} 
-                      color="success" 
-                      variant="outlined" 
-                    />
-                  )}
+                  {/* MODUŁ 4: Dummy sentiment/potencjał elementy zastąpione zaawansowanymi wskaźnikami w Strategic Panel */}
                 </Stack>
                 
                 <Typography variant="body2" color="text.secondary">
