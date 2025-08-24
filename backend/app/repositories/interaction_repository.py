@@ -1,17 +1,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
+from sqlalchemy.orm import joinedload
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from app.models.domain import Interaction, Session as SessionModel, Client
 from app.schemas.interaction import InteractionCreateNested
-from app.services.ai_service import generate_sales_analysis
+from app.services.ai_service import generate_sales_analysis, ai_service
+from app.services.session_psychology_service import session_psychology_engine
+from app.core.database import engine  # Import engine dla fresh database session
+import logging
+
+logger = logging.getLogger(__name__)
 
 class InteractionRepository:
     """
     Repozytorium do zarządzania operacjami na danych interakcji.
     """
     async def get_interaction(self, db: AsyncSession, interaction_id: int):
-        query = select(Interaction).where(Interaction.id == interaction_id)
+        # EAGER LOADING: Pobierz interaction wraz z session psychology data
+        query = select(Interaction).options(joinedload(Interaction.session)).where(Interaction.id == interaction_id)
         result = await db.execute(query)
         return result.scalar_one_or_none()
 
@@ -46,8 +53,14 @@ class InteractionRepository:
                 "feedback_data": []
             }
             
+            # NOWE: Sprawdź czy to clarification interaction
+            is_clarification = bool(interaction_data.additional_context or interaction_data.clarifying_answer)
+            parent_id = interaction_data.parent_interaction_id if hasattr(interaction_data, 'parent_interaction_id') else None
+            
+            print(f"🔄 [CREATE] Tworzenie interakcji: is_clarification={is_clarification}, parent_id={parent_id}")
+            
             try:
-                # Spróbuj wygenerować analizę AI
+                # NOWA LOGIKA: Różne ścieżki dla clarification vs standard
                 if client:
                     client_profile = {
                         "alias": client.alias,
@@ -55,16 +68,34 @@ class InteractionRepository:
                         "notes": client.notes
                     }
                     
-                    # Historia sesji (pusta na razie)
+                    # Historia sesji
                     session_history = []
                     session_context = {"session_type": "consultation"}
                     
-                    ai_response = await generate_sales_analysis(
-                        user_input=interaction_data.user_input,
-                        client_profile=client_profile,
-                        session_history=session_history,
-                        session_context=session_context
-                    )
+                    if is_clarification and parent_id:
+                        # ŚCIEŻKA CLARIFICATION: Standardowa analiza (funkcja usunięta w v3.0)
+                        print(f"🔄 [CLARIFICATION] DEPRECATED - używam standard analysis dla parent={parent_id}")
+                        
+                        ai_response = await generate_sales_analysis(
+                            user_input=f"Aktualizacja: {interaction_data.user_input}",
+                            client_profile=client_profile,
+                            session_history=session_history,
+                            session_context={'type': 'clarification_update'}
+                        )
+                    else:
+                        # ŚCIEŻKA STANDARD: Nowa analiza z dwuetapowym procesem
+                        print(f"🔄 [STANDARD] Generuję nową analizę z dwuetapowym procesem")
+                        
+                        ai_response = await generate_sales_analysis(
+                            user_input=interaction_data.user_input,
+                            client_profile=client_profile,
+                            session_history=session_history,
+                            session_context=session_context
+                        )
+                        
+                        # Dodaj confidence scoring do response
+                        ai_response['analysis_confidence'] = 50  # Default, zostanie zaktualizowane przez background task
+                        ai_response['needs_more_info'] = False   # Default
                     
                     interaction_dict["ai_response_json"] = ai_response
                     
@@ -85,10 +116,27 @@ class InteractionRepository:
             db.add(db_interaction)
             await db.flush()
             await db.refresh(db_interaction)
+            
+            # NOWA ARCHITEKTURA v3.0: Session-Level Psychology Engine
+            try:
+                # Uruchom SessionPsychologyEngine dla całej sesji (nie per interakcja)
+                # KRYTYCZNA NAPRAWA: Nie przekazuj db - engine stworzy własną świeżą sesję
+                import asyncio
+                asyncio.create_task(
+                    session_psychology_engine.update_cumulative_profile(session_id, None)
+                )
+                print(f"🧠 [SESSION PSYCHOLOGY] Engine uruchomiony dla sesji {session_id}")
+            except Exception as psychology_error:
+                # Loguj błąd, ale nie przerywaj głównego flow
+                print(f"Błąd podczas uruchamiania Session Psychology Engine: {psychology_error}")
+            
             return db_interaction
             
         except Exception as e:
             raise ValueError(f"Błąd podczas tworzenia interakcji: {e}")
+
+    # STARE FUNKCJE USUNIĘTE - Zastąpione przez SessionPsychologyEngine v3.0
+    # Wszystkie per-interaction psychology functions zostały przeniesione na poziom sesji
 
     async def update_interaction(self, db: AsyncSession, interaction_id: int, update_data: dict):
         """

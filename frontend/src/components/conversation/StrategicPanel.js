@@ -41,16 +41,65 @@ import {
   Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import { getKnowledgeList } from '../../services/knowledgeApi';
+import PsychometricDashboard from '../psychometrics/PsychometricDashboard';
+import CustomerArchetypeDisplay from '../psychometrics/CustomerArchetypeDisplay';
+import { usePsychometrics } from '../../hooks/usePsychometrics';
 
 const StrategicPanel = ({ 
   archetypes = [], 
   insights = [], 
   currentSession, 
+  currentInteractionId = null,
   isLoading 
 }) => {
   const [knowledgeItems, setKnowledgeItems] = useState([]);
   const [loadingKnowledge, setLoadingKnowledge] = useState(false);
-  const [expandedAccordion, setExpandedAccordion] = useState('archetypes');
+  const [expandedAccordion, setExpandedAccordion] = useState('psychometric'); // Domyślnie otwórz psychometric
+
+  // Hook do analizy psychometrycznej (Moduł 2)
+  const { 
+    analysisData, 
+    loading: psychometricLoading, 
+    hasData: hasPsychometricData,
+    error: psychometricError,
+    isPolling,
+    attempts,
+    maxAttempts
+  } = usePsychometrics(currentInteractionId, { 
+    autoFetch: !!currentInteractionId,
+    enablePolling: true  // KROK 2: Włącz polling
+  });
+
+  // 🔍 SZCZEGÓŁOWY DEBUG dla StrategicPanel
+  console.log('StrategicPanel - currentInteractionId:', currentInteractionId);
+  if (analysisData) {
+    console.log('🔍 [STRATEGIC] analysisData KEYS:', Object.keys(analysisData));
+    console.log('🔍 [STRATEGIC] customer_archetype:', analysisData?.customer_archetype);
+    console.log('🔍 [STRATEGIC] psychology_confidence:', analysisData?.psychology_confidence);
+    console.log('🔍 [STRATEGIC] cumulative_psychology exists:', !!analysisData?.cumulative_psychology);
+    if (analysisData?.cumulative_psychology) {
+      console.log('🔍 [STRATEGIC] cumulative_psychology KEYS:', Object.keys(analysisData.cumulative_psychology));
+      console.log('🔍 [STRATEGIC] big_five structure:', analysisData.cumulative_psychology.big_five);
+      console.log('🔍 [STRATEGIC] disc structure:', analysisData.cumulative_psychology.disc);
+      console.log('🔍 [STRATEGIC] schwartz structure:', analysisData.cumulative_psychology.schwartz_values);
+    }
+  }
+  console.log('StrategicPanel - psychometricLoading:', psychometricLoading);
+  console.log('StrategicPanel - hasPsychometricData:', hasPsychometricData);
+  console.log('StrategicPanel - psychometricError:', psychometricError);
+
+  // Handler dla odpowiedzi na pytania pomocnicze
+  const handleClarificationAnswered = (questionId, selectedOption, clarifyingAnswer) => {
+    console.log('🎯 StrategicPanel - otrzymano odpowiedź na pytanie:', questionId, selectedOption);
+    // Wymuś refresh analizy po odpowiedzi
+    setTimeout(() => {
+      // Po 2 sekundach uruchom refresh aby dać czas na backend processing
+      if (window.location.reload) {
+        console.log('🔄 StrategicPanel - odświeżam po clarification');
+        // Tu w przyszłości można dodać bardziej elegancki refresh
+      }
+    }, 2000);
+  };
 
   // Load strategic knowledge based on dominant archetype
   useEffect(() => {
@@ -142,6 +191,13 @@ const StrategicPanel = ({
 
       {/* Content */}
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>
+        {/* ETAP 5 v3.0: Customer Archetype Display - NAJWAŻNIEJSZY KOMPONENT NA GÓRZE */}
+        <CustomerArchetypeDisplay 
+          customerArchetype={analysisData?.customer_archetype}
+          psychologyConfidence={analysisData?.psychology_confidence || 0}
+          loading={psychometricLoading}
+        />
+        
         {/* Sekcja Archetypów */}
         <Accordion 
           expanded={expandedAccordion === 'archetypes'} 
@@ -219,6 +275,45 @@ const StrategicPanel = ({
                 ))}
               </Stack>
             )}
+          </AccordionDetails>
+        </Accordion>
+
+        {/* Sekcja Profil Psychometryczny (Moduł 2) */}
+        <Accordion 
+          expanded={expandedAccordion === 'psychometric'} 
+          onChange={handleAccordionChange('psychometric')}
+          sx={{ mb: 1 }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PsychologyIcon color="secondary" fontSize="small" />
+              Szczegółowy Profil Psychometryczny
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                (Wykresy radarowe, Interactive Q&A)
+              </Typography>
+              {hasPsychometricData && (
+                <Badge badgeContent="AI" color="secondary" />
+              )}
+              {psychometricLoading && (
+                <Badge badgeContent="..." color="info" />
+              )}
+              {isPolling && (
+                <Badge badgeContent={`${attempts}/${maxAttempts}`} color="warning" />
+              )}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <Box sx={{ width: '100%' }}>
+              <PsychometricDashboard 
+                analysisData={analysisData} 
+                loading={psychometricLoading}
+                isPolling={isPolling}
+                attempts={attempts}
+                maxAttempts={maxAttempts}
+                interactionId={currentInteractionId}
+                onClarificationAnswered={handleClarificationAnswered}
+              />
+            </Box>
           </AccordionDetails>
         </Accordion>
 

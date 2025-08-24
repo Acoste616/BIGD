@@ -50,7 +50,9 @@ export {
   getRecentInteractions,
   formatInteractionData,
   validateInteractionData,
-  getAvailableInteractionTypes
+  getAvailableInteractionTypes,
+  sendClarifyingAnswer,  // DEPRECATED: Interactive Psychometric Flow
+  sendSessionQuestionAnswer  // NOWY v3.0: Session-level question answering
 } from './interactionsApi';
 
 // Eksport funkcji modułu Knowledge Management

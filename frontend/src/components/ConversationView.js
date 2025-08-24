@@ -47,6 +47,7 @@ const ConversationView = () => {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
   const [interactions, setInteractions] = useState([]);
+  const [currentInteractionId, setCurrentInteractionId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Stan panelu strategicznego
@@ -302,7 +303,10 @@ Przygotuj dane w formacie JSON gotowym do zapisu.`,
                 interactions={interactions}
                 isLoading={isLoading}
                 onNewInteraction={(interaction) => {
+                  console.log('ConversationView - nowa interakcja:', interaction);
+                  console.log('ConversationView - ustawiam currentInteractionId na:', interaction.id);
                   setInteractions(prev => [...prev, interaction]);
+                  setCurrentInteractionId(interaction.id); // Śledzenie ID dla analizy psychometrycznej
                 }}
                 onSessionUpdate={setCurrentSession}
                 onClientIdUpdate={setCurrentClientId}
@@ -341,6 +345,7 @@ Przygotuj dane w formacie JSON gotowym do zapisu.`,
                 archetypes={archetypes}
                 insights={strategicInsights}
                 currentSession={currentSession}
+                currentInteractionId={currentInteractionId}
                 isLoading={isLoading}
               />
             </Paper>

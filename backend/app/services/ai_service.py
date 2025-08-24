@@ -36,6 +36,154 @@ from .qdrant_service import QdrantService
 logger = logging.getLogger(__name__)
 
 
+# Prompt psychometryczny dla Modułu 2: Zintegrowana Analiza Psychometryczna
+PSYCHOMETRIC_SYSTEM_PROMPT = """
+Jesteś ekspertem w dziedzinie psychologii sprzedaży i lingwistyki. Twoim zadaniem jest przeanalizować poniższą transkrypcję rozmowy sprzedażowej i stworzyć szczegółowy profil psychometryczny klienta. Wynik przedstaw WYŁĄCZNIE jako JSON zgodny z podaną strukturą.
+
+KROKI ANALIZY:
+
+1. **Analiza Big Five:** Oceń klienta w 5 wymiarach osobowości (0-10). Dla każdej cechy podaj UZASADNIENIE (rationale) z cytatami z rozmowy oraz STRATEGIĘ sprzedażową dostosowaną do tej cechy.
+
+2. **Analiza DISC:** Oceń dominujący styl zachowania klienta (0-10) w 4 wymiarach. Dla każdej cechy podaj UZASADNIENIE z przykładami oraz STRATEGIĘ sprzedażową.
+
+3. **Analiza Wartości Schwartza:** Zidentyfikuj, które z kluczowych wartości (Bezpieczeństwo, Władza, Osiągnięcia, Hedonizm, Stymulacja, Samostanowienie, Uniwersalizm, Życzliwość, Tradycja, Przystosowanie) są obecne w wypowiedziach klienta. Dla każdej podaj UZASADNIENIE i STRATEGIĘ.
+
+ENHANCED GUIDELINES - Precyzyjna Analiza:
+
+BIG FIVE - Wskazówki Specyficzne:
+- Openness (0-10): Czy klient pyta o nowe technologie, innowacje, funkcje przyszłości?
+- Conscientiousness (0-10): Czy wymaga szczegółów, danych, planuje długoterminowo?
+- Extraversion (0-10): Czy mówi o innych ludziach, statusie, wrażeniu na otoczenie?
+- Agreeableness (0-10): Czy unika konfrontacji, szuka konsensusu, jest uprzejmy?
+- Neuroticism (0-10): Czy wyraża obawy, stres, niepewność, potrzebę bezpieczeństwa?
+
+DISC - Wskazówki Behawioralne:
+- Dominance (0-10): Czy jest bezpośredni, decyzyjny, chce kontrolować proces?
+- Influence (0-10): Czy jest towarzyski, perswazyjny, opowiada historie?
+- Steadiness (0-10): Czy jest cierpliwy, lojalny, szuka stabilności?
+- Compliance (0-10): Czy jest analityczny, systematyczny, potrzebuje dowodów?
+
+SCHWARTZ VALUES - Kluczowe Motywatory:
+- Bezpieczeństwo: Gwarancje, koszty, niezawodność
+- Władza: Status, prestiż, kontrola, wpływ na innych
+- Osiągnięcia: Sukces, kompetencje, wyniki, efektywność
+- Hedonizm: Przyjemność, komfort, luksus
+- Stymulacja: Nowość, wyzwania, ekscytacja
+- Samostanowienie: Niezależność, autonomia, własne decyzje
+- Uniwersalizm: Ekologia, dobro ogółu, sprawiedliwość
+- Życzliwość: Troska o innych, relacje, współpraca
+- Tradycja: Szacunek dla kultury, stabilne wartości
+- Przystosowanie: Dopasowanie do norm, uprzejmość
+
+STRUKTURA WYJŚCIOWA - zwróć WYŁĄCZNIE ten JSON:
+{
+  "big_five": {
+    "openness": { "score": 7, "rationale": "Klient wypowiedział: '[cytat z rozmowy]', co wskazuje na...", "strategy": "Skoncentruj się na innowacyjnych cechach Tesla..." },
+    "conscientiousness": { "score": 8, "rationale": "Z wypowiedzi '[cytat]' wynika...", "strategy": "Przedstaw szczegółowe dane o ROI i TCO..." },
+    "extraversion": { "score": 6, "rationale": "...", "strategy": "..." },
+    "agreeableness": { "score": 5, "rationale": "...", "strategy": "..." },
+    "neuroticism": { "score": 4, "rationale": "...", "strategy": "..." }
+  },
+  "disc": {
+    "dominance": { "score": 6, "rationale": "Klient wykazuje cechy dominacji przez...", "strategy": "Bądź bezpośredni, prezentuj fakty..." },
+    "influence": { "score": 4, "rationale": "...", "strategy": "..." },
+    "steadiness": { "score": 7, "rationale": "...", "strategy": "..." },
+    "compliance": { "score": 8, "rationale": "...", "strategy": "..." }
+  },
+  "schwartz_values": [
+    { "value_name": "Bezpieczeństwo", "is_present": true, "rationale": "Klient wyraził obawy o...", "strategy": "Podkreśl najwyższe oceny bezpieczeństwa Tesla..." },
+    { "value_name": "Osiągnięcia", "is_present": false, "rationale": "Brak oznak zorientowania na sukces...", "strategy": "..." }
+  ]
+}
+
+KLUCZOWE WYMAGANIA:
+- Każde uzasadnienie MUSI zawierać konkretne cytaty z rozmowy
+- Strategie muszą być praktyczne i gotowe do użycia przez sprzedawcę Tesla
+- Oceny muszą być realistyczne i oparte na faktycznych dowodach z tekstu
+- JSON musi być poprawnie sformatowany (bez komentarzy)
+
+JEŚLI BRAK WYSTARCZAJĄCYCH DANYCH:
+Jeśli rozmowa jest zbyt krótka lub nie zawiera wystarczających informacji do precyzyjnej analizy psychometrycznej, 
+zamiast JSON zwróć:
+
+{
+  "insufficient_data": true,
+  "probing_questions": [
+    "Konkretne pytanie pomagające określić Big Five",
+    "Pytanie o styl komunikacji (DISC)",
+    "Pytanie o motywacje i wartości (Schwartz)"
+  ],
+  "analysis_confidence": "low",
+  "suggestions": "Co sprzedawca powinien sprawdzić aby lepiej zrozumieć psychologię klienta"
+}
+"""
+
+# Enhanced prompt dla Dwuetapowej Analizy Psychometrycznej
+DUAL_STAGE_PSYCHOMETRIC_PROMPT = """
+Jesteś ekspertem psychologii sprzedaży prowadzącym DWUETAPOWĄ ANALIZĘ klienta.
+
+ETAP 1 - WSTĘPNA ANALIZA:
+1. Przeanalizuj dostępny tekst pod kątem Big Five, DISC i Schwartz
+2. Dla każdego wymiaru oblicz wstępną ocenę i PEWNOŚĆ tej oceny (0-100%)
+3. Oblicz OGÓLNĄ PEWNOŚĆ całej analizy jako średnią ważoną
+
+ETAP 2 - SAMOOCENA AI:
+Zadaj sobie pytanie: "Czy na podstawie dostarczonych informacji mój poziom pewności 
+co do określonego profilu psychometrycznego jest wystarczająco wysoki (≥75%)?"
+
+JEŚLI PEWNOŚĆ ≥ 75%:
+Zwróć pełną analizę psychometryczną bez dodatkowych pytań.
+
+JEŚLI PEWNOŚĆ < 75%:
+Zidentyfikuj KONKRETNIE jakich informacji brakuje i wygeneruj 2-3 pytania A/B dla sprzedawcy.
+
+STRUKTURA ODPOWIEDZI:
+{
+  "confidence_score": 85,
+  "needs_clarification": false,
+  "analysis_stage": "confirmed",
+  "big_five": { ... },
+  "disc": { ... },
+  "schwartz_values": [ ... ],
+  "clarifying_questions": [
+    {
+      "id": "q1_decision_style",
+      "question": "Jak klient podejmuje decyzje?",
+      "option_a": "Szybko, intuicyjnie", 
+      "option_b": "Wolno, po szczegółowej analizie",
+      "psychological_target": "Conscientiousness vs Openness"
+    }
+  ]
+}
+
+KLUCZOWE: Pytania są dla SPRZEDAWCY o jego OBSERWACJE, nie do zadania klientowi!
+"""
+
+# Prompt dla Enhanced Response Generation z profilem psychometrycznym
+PSYCHOLOGICALLY_INFORMED_RESPONSE_PROMPT = """
+Jesteś ekspertem sprzedaży Tesla generującym PSYCHOLOGICZNIE DOSTOSOWANĄ odpowiedź.
+
+Otrzymujesz POTWIERDZONY profil psychometryczny klienta i musisz wygenerować 
+sugerowaną odpowiedź która jest precyzyjnie dostosowana do jego psychologii.
+
+UŻYJ PROFILU PSYCHOMETRYCZNEGO do:
+1. Dostosowania tonu i stylu komunikacji (DISC)
+2. Adresowania głównych motywatorów (Schwartz Values)  
+3. Dostosowania poziomu szczegółowości (Big Five - Conscientiousness)
+4. Uwzględnienia obaw i lęków (Big Five - Neuroticism)
+
+STRUKTURA ODPOWIEDZI:
+{
+  "quick_response": {
+    "id": "qr_xxx",
+    "text": "Psychologicznie dostosowana odpowiedź uwzględniająca profil klienta"
+  },
+  "psychological_reasoning": "Dlaczego ta odpowiedź jest dostosowana do profilu",
+  "confidence_level": 95
+}
+"""
+
+
 class AIService:
     """
     Tesla Co-Pilot AI Service - Elitarny ekspert sprzedaży Tesli
@@ -862,6 +1010,534 @@ Przeanalizuj tę informację i odpowiedz zgodnie z instrukcjami systemowymi.
             "error_reason": error_msg
         }
 
+    async def generate_dual_stage_psychometric_analysis(
+        self,
+        user_input: str,
+        session_history: List[Dict[str, Any]],
+        client_profile: Dict[str, Any],
+        additional_context: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        NOWA FUNKCJA: Dwuetapowa analiza psychometryczna z confidence scoring
+        
+        ETAP 1: Wstępna analiza + samoocena pewności AI
+        ETAP 2A: Jeśli pewność ≥75% → Pełna analiza  
+        ETAP 2B: Jeśli pewność <75% → Generowanie pytań pomocniczych
+        
+        Args:
+            additional_context: Kontekst z odpowiedzi na pytania pomocnicze
+        """
+        try:
+            logger.info("🧠 [DUAL STAGE] Rozpoczynam dwuetapową analizę psychometryczną...")
+            
+            # Zbuduj transkrypcję z dodatkowym kontekstem
+            conversation_transcript = self._build_enhanced_transcript(
+                user_input, session_history, additional_context
+            )
+            
+            # ETAP 1: Wstępna analiza z confidence scoring
+            user_prompt = f"""
+TRANSKRYPCJA ROZMOWY + DODATKOWY KONTEKST:
+{conversation_transcript}
+
+Wykonaj DWUETAPOWĄ analizę zgodnie z instrukcjami w system prompt.
+"""
+
+            # Wywołaj AI z dwuetapowym promptem
+            for attempt in range(self.max_retries):
+                try:
+                    logger.info(f"🔄 [DUAL STAGE] Próba {attempt + 1}: Wysyłanie do LLM...")
+                    
+                    llm_response = await asyncio.to_thread(
+                        self._sync_ollama_call,
+                        DUAL_STAGE_PSYCHOMETRIC_PROMPT,
+                        user_prompt
+                    )
+                    
+                    # Parsuj dwuetapową odpowiedź
+                    parsed_response = self._parse_dual_stage_response(llm_response)
+                    
+                    if parsed_response:
+                        confidence = parsed_response.get('confidence_score', 0)
+                        needs_clarification = parsed_response.get('needs_clarification', True)
+                        
+                        logger.info(f"✅ [DUAL STAGE] Analiza zakończona: confidence={confidence}%, needs_clarification={needs_clarification}")
+                        return parsed_response
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ [DUAL STAGE] Próba {attempt + 1} nie powiodła się: {e}")
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep((attempt + 1) * 2)
+            
+            logger.error("❌ [DUAL STAGE] Wszystkie próby analizy nie powiodły się")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ [DUAL STAGE] Błąd podczas dwuetapowej analizy: {e}")
+            return None
+
+    async def generate_psychometric_analysis(
+        self,
+        user_input: str,
+        session_history: List[Dict[str, Any]],
+        client_profile: Dict[str, Any],
+        interactive_mode: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Wygeneruj szczegółową analizę psychometryczną klienta (Moduł 2)
+        
+        To jest "wolna ścieżka" analizy - wykonywana asynchronicznie, nie blokuje UI.
+        Analizuje całą transkrypcję rozmowy pod kątem cech Big Five, DISC i wartości Schwartza.
+        
+        Args:
+            user_input: Aktualne wejście od sprzedawcy
+            session_history: Historia całej rozmowy w sesji
+            client_profile: Profil klienta z dotychczasowymi informacjami
+            interactive_mode: Czy AI może zadawać pytania gdy brak danych (default: True)
+            
+        Returns:
+            Słownik z pełną analizą psychometryczną, probing questions, lub None w przypadku błędu
+        """
+        try:
+            logger.info("🧠 Rozpoczynam analizę psychometryczną klienta...")
+            
+            # Zbuduj pełną transkrypcję rozmowy
+            conversation_transcript = self._build_conversation_transcript(user_input, session_history)
+            
+            # Sprawdź czy mamy wystarczające dane
+            transcript_length = len(conversation_transcript)
+            has_sufficient_data = transcript_length > 300 and len(session_history) >= 1  # Minimalne kryteria
+            
+            print(f"🧠 Analiza psychometryczna: długość transkrypcji = {transcript_length}, historia = {len(session_history)}")
+            
+            # Wybierz odpowiedni prompt
+            if interactive_mode and not has_sufficient_data:
+                system_prompt = DUAL_STAGE_PSYCHOMETRIC_PROMPT
+                user_prompt = f"""
+TRANSKRYPCJA ROZMOWY DO ANALIZY:
+{conversation_transcript}
+
+KONTEKST KLIENTA:
+- Archetyp: {client_profile.get('archetype', 'Nieznany')}
+- Notatki: {client_profile.get('notes', 'Brak')}
+
+Oceń czy masz wystarczające dane do pełnej analizy psychometrycznej, czy potrzebujesz więcej informacji.
+"""
+            else:
+                system_prompt = PSYCHOMETRIC_SYSTEM_PROMPT
+                user_prompt = f"""
+TRANSKRYPCJA ROZMOWY DO ANALIZY:
+{conversation_transcript}
+
+Przeanalizuj powyższą rozmowę sprzedażową i stwórz kompletny profil psychometryczny klienta zgodnie z podanymi instrukcjami.
+"""
+
+            print(f"🧠 Używam {'INTERACTIVE' if interactive_mode and not has_sufficient_data else 'STANDARD'} prompt")
+
+            # Wywołaj LLM z odpowiednim promptem
+            for attempt in range(self.max_retries):
+                try:
+                    logger.info(f"🔄 Próba {attempt + 1}: Wysyłanie zapytania o analizę psychometryczną do LLM...")
+                    
+                    llm_response = await asyncio.to_thread(
+                        self._sync_ollama_call,
+                        system_prompt,
+                        user_prompt
+                    )
+                    
+                    # Parsuj odpowiedź JSON
+                    parsed_response = self._parse_psychometric_response(llm_response)
+                    
+                    if parsed_response:
+                        logger.info("✅ Analiza psychometryczna zakończona pomyślnie!")
+                        return parsed_response
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ Próba {attempt + 1} nie powiodła się: {e}")
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep((attempt + 1) * 2)  # Exponential backoff
+            
+            logger.error("❌ Wszystkie próby analizy psychometrycznej nie powiodły się")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas analizy psychometrycznej: {e}")
+            return None
+    
+    def _build_conversation_transcript(self, current_input: str, session_history: List[Dict[str, Any]]) -> str:
+        """
+        Zbuduj pełną transkrypcję rozmowy dla analizy psychometrycznej
+        """
+        transcript = "=== TRANSKRYPCJA ROZMOWY SPRZEDAŻOWEJ ===\n\n"
+        
+        # Dodaj historię interakcji
+        for i, interaction in enumerate(session_history, 1):
+            user_input = interaction.get('user_input', '')
+            timestamp = interaction.get('timestamp', 'nieznany czas')
+            
+            transcript += f"[{i}] Sprzedawca ({timestamp}): \n{user_input}\n\n"
+        
+        # Dodaj aktualną interakcję
+        transcript += f"[BIEŻĄCA] Sprzedawca: \n{current_input}\n\n"
+        
+        transcript += "=== KONIEC TRANSKRYPCJI ==="
+        return transcript
+    
+    def _build_enhanced_transcript(
+        self, 
+        current_input: str, 
+        session_history: List[Dict[str, Any]], 
+        additional_context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Buduje rozszerzoną transkrypcję z dodatkowym kontekstem z pytań pomocniczych
+        """
+        transcript = self._build_conversation_transcript(current_input, session_history)
+        
+        # Dodaj kontekst z odpowiedzi na pytania pomocnicze
+        if additional_context:
+            transcript += "\n\n=== DODATKOWY KONTEKST Z OBSERWACJI SPRZEDAWCY ===\n"
+            
+            if 'clarifying_answers' in additional_context:
+                transcript += "ODPOWIEDZI NA PYTANIA POMOCNICZE AI:\n"
+                for answer in additional_context['clarifying_answers']:
+                    question = answer.get('question', 'Nieznane pytanie')
+                    selected_option = answer.get('selected_option', 'Brak odpowiedzi')
+                    psychological_target = answer.get('psychological_target', '')
+                    
+                    transcript += f"- Pytanie: {question}\n"
+                    transcript += f"  Odpowiedź: {selected_option}\n"
+                    transcript += f"  Cel psychologiczny: {psychological_target}\n\n"
+            
+            transcript += "=== KONIEC DODATKOWEGO KONTEKSTU ==="
+        
+        return transcript
+    
+    def _parse_dual_stage_response(self, llm_response: str) -> Optional[Dict[str, Any]]:
+        """
+        Parsuj odpowiedź z dwuetapowej analizy psychometrycznej
+        """
+        try:
+            cleaned_response = llm_response.strip()
+            
+            # Znajdź JSON w odpowiedzi
+            start_idx = cleaned_response.find('{')
+            end_idx = cleaned_response.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx == 0:
+                logger.warning("⚠️ [DUAL STAGE] Brak poprawnego JSON w odpowiedzi")
+                return None
+            
+            json_str = cleaned_response[start_idx:end_idx]
+            parsed_data = json.loads(json_str)
+            
+            # Walidacja podstawowych pól dwuetapowej analizy
+            if 'confidence_score' not in parsed_data:
+                logger.warning("⚠️ [DUAL STAGE] Brak confidence_score w odpowiedzi")
+                return None
+                
+            confidence = parsed_data.get('confidence_score', 0)
+            needs_clarification = confidence < 75  # Automatyczna logika decyzyjna
+            
+            # Aktualizuj flagę na podstawie confidence
+            parsed_data['needs_clarification'] = needs_clarification
+            
+            if needs_clarification and 'clarifying_questions' not in parsed_data:
+                logger.warning("⚠️ [DUAL STAGE] Niska pewność ale brak pytań pomocniczych")
+                
+            logger.info(f"✅ [DUAL STAGE] Dwuetapowa odpowiedź sparsowana: confidence={confidence}%, needs_clarification={needs_clarification}")
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ [DUAL STAGE] Błąd parsowania JSON: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ [DUAL STAGE] Nieoczekiwany błąd podczas parsowania: {e}")
+            return None
+    
+    def _parse_psychometric_response(self, llm_response: str) -> Optional[Dict[str, Any]]:
+        """
+        Parsuj odpowiedź LLM dla analizy psychometrycznej
+        Obsługuje zarówno pełną analizę jak i interactive mode
+        """
+        try:
+            # Wyczyść odpowiedź z potencjalnych prefixów/sufiksów
+            cleaned_response = llm_response.strip()
+            
+            # Znajdź JSON w odpowiedzi
+            start_idx = cleaned_response.find('{')
+            end_idx = cleaned_response.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx == 0:
+                logger.warning("⚠️ Brak poprawnego JSON w odpowiedzi psychometrycznej")
+                return None
+            
+            json_str = cleaned_response[start_idx:end_idx]
+            parsed_data = json.loads(json_str)
+            
+            # Sprawdź czy to interactive mode response
+            if parsed_data.get('insufficient_data') or parsed_data.get('mode') == 'interactive':
+                logger.info("📋 Otrzymano interactive response z probing questions")
+                return {
+                    'mode': 'interactive',
+                    'probing_questions': parsed_data.get('probing_questions', []),
+                    'confidence_level': parsed_data.get('confidence_level', 'low'),
+                    'next_steps': parsed_data.get('next_steps', ''),
+                    'suggestions': parsed_data.get('suggestions', '')
+                }
+            
+            # Walidacja struktury dla pełnej analizy
+            required_keys = ['big_five', 'disc', 'schwartz_values']
+            if not all(key in parsed_data for key in required_keys):
+                logger.warning("⚠️ Niepełna struktura w odpowiedzi psychometrycznej")
+                return None
+            
+            logger.info("✅ Odpowiedź psychometryczna została pomyślnie sparsowana")
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ Błąd parsowania JSON w analizie psychometrycznej: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ Nieoczekiwany błąd podczas parsowania analizy psychometrycznej: {e}")
+            return None
+
+    async def generate_psychologically_informed_response(
+        self,
+        user_input: str,
+        client_profile: Dict[str, Any],
+        psychometric_profile: Dict[str, Any],
+        session_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        KROK 4: Generuje psychologicznie dostosowaną sugerowaną odpowiedź
+        
+        Wykorzystuje POTWIERDZONY profil psychometryczny do precyzyjnego 
+        dostosowania tonu, stylu i treści odpowiedzi.
+        """
+        try:
+            logger.info("🎭 [PSYCH RESPONSE] Generuję psychologicznie dostosowaną odpowiedź...")
+            
+            # Przygotuj kontekst psychometryczny dla AI
+            psych_context = self._format_psychometric_context(psychometric_profile)
+            
+            user_prompt = f"""
+SYTUACJA KLIENTA:
+{user_input}
+
+POTWIERDZONY PROFIL PSYCHOMETRYCZNY:
+{psych_context}
+
+KONTEKST KLIENTA:
+- Archetyp: {client_profile.get('archetype', 'Nieznany')}
+- Notatki: {client_profile.get('notes', 'Brak')}
+
+Wygeneruj psychologicznie dostosowaną sugerowaną odpowiedź uwzględniając profil klienta.
+"""
+
+            for attempt in range(self.max_retries):
+                try:
+                    llm_response = await asyncio.to_thread(
+                        self._sync_ollama_call,
+                        PSYCHOLOGICALLY_INFORMED_RESPONSE_PROMPT,
+                        user_prompt
+                    )
+                    
+                    # Parsuj odpowiedź
+                    parsed_response = self._parse_llm_response(llm_response)
+                    
+                    if parsed_response:
+                        logger.info("✅ [PSYCH RESPONSE] Psychologicznie dostosowana odpowiedź wygenerowana")
+                        return parsed_response
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ [PSYCH RESPONSE] Próba {attempt + 1} nie powiodła się: {e}")
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep((attempt + 1) * 2)
+            
+            # Fallback
+            return self._create_fallback_response(user_input, "Błąd generowania psychologicznie dostosowanej odpowiedzi")
+            
+        except Exception as e:
+            logger.error(f"❌ [PSYCH RESPONSE] Błąd: {e}")
+            return self._create_fallback_response(user_input, str(e))
+    
+    def _format_psychometric_context(self, psychometric_profile: Dict[str, Any]) -> str:
+        """
+        Formatuje profil psychometryczny dla AI prompt
+        """
+        context = ""
+        
+        if psychometric_profile.get('big_five'):
+            context += "BIG FIVE PROFILE:\n"
+            for trait, data in psychometric_profile['big_five'].items():
+                score = data.get('score', 0)
+                context += f"- {trait.title()}: {score}/10\n"
+            context += "\n"
+        
+        if psychometric_profile.get('disc'):
+            context += "DISC PROFILE:\n"
+            for trait, data in psychometric_profile['disc'].items():
+                score = data.get('score', 0)
+                context += f"- {trait.title()}: {score}/10\n"
+            context += "\n"
+        
+        if psychometric_profile.get('schwartz_values'):
+            present_values = [v['value_name'] for v in psychometric_profile['schwartz_values'] if v.get('is_present')]
+            if present_values:
+                context += f"KLUCZOWE WARTOŚCI: {', '.join(present_values)}\n"
+        
+        return context
+
+    async def generate_psychology_enhanced_analysis(
+        self,
+        user_input: str,
+        client_profile: Dict[str, Any],
+        session_history: List[Dict[str, Any]],
+        session_context: Optional[Dict[str, Any]] = None,
+        session_psychology: Optional[Dict[str, Any]] = None,
+        customer_archetype: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        ETAP 4 v3.0: Psychology-Enhanced Strategy Generation
+        
+        Generuje kompletną strategię sprzedażową uwzględniającą:
+        - Potwierdzony profil psychologiczny sesji
+        - Customer archetype z kluczowymi poradami
+        - Dostosowane suggested_actions i quick_response
+        """
+        try:
+            logger.info("🎭 [PSYCHOLOGY STRATEGY] Generuję psychology-enhanced analysis...")
+            
+            # Jeśli mamy psychology i archetype, użyj enhanced prompta
+            if session_psychology and customer_archetype:
+                return await self._generate_archetype_informed_strategy(
+                    user_input, client_profile, session_psychology, customer_archetype
+                )
+            else:
+                # Fallback do standardowej analizy
+                logger.info("🎭 [PSYCHOLOGY STRATEGY] Brak psychology data - fallback do standard analysis")
+                return await self.generate_analysis(
+                    user_input=user_input,
+                    client_profile=client_profile, 
+                    session_history=session_history,
+                    session_context=session_context
+                )
+                
+        except Exception as e:
+            logger.error(f"❌ [PSYCHOLOGY STRATEGY] Error: {e}")
+            # Fallback do standardowej analizy
+            return await self.generate_analysis(
+                user_input=user_input,
+                client_profile=client_profile,
+                session_history=session_history, 
+                session_context=session_context
+            )
+
+    async def _generate_archetype_informed_strategy(
+        self,
+        user_input: str,
+        client_profile: Dict[str, Any],
+        session_psychology: Dict[str, Any],
+        customer_archetype: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        ETAP 4: Generuje strategię dostosowaną do archetypu klienta
+        """
+        try:
+            archetype_name = customer_archetype.get('archetype_name', 'Unknown')
+            archetype_key = customer_archetype.get('archetype_key', 'unknown')
+            sales_strategy = customer_archetype.get('sales_strategy', {})
+            
+            logger.info(f"🎭 [ARCHETYPE STRATEGY] Generuję strategię dla archetypu: {archetype_name}")
+            
+            # Enhanced system prompt z archetype context
+            psychology_informed_prompt = f"""
+Jesteś ekspertem sprzedaży Tesla generującym PSYCHOLOGICZNIE DOSTOSOWANĄ strategię.
+
+KLUCZOWE: Klient został zidentyfikowany jako ARCHETYP: {archetype_name}
+
+ARCHETYPE PROFILE:
+- Nazwa: {archetype_name}
+- Kluczowe cechy: {customer_archetype.get('key_traits', [])}
+- Strategia "RÓB TO": {sales_strategy.get('do', [])}
+- Strategia "NIE RÓB TEGO": {sales_strategy.get('dont', [])}
+
+PROFIL PSYCHOLOGICZNY SESJI:
+{json.dumps(session_psychology, ensure_ascii=False, indent=2)}
+
+TWOJE ZADANIE:
+1. Wygeneruj main_analysis uwzględniający archetyp klienta
+2. Stwórz quick_response dostosowaną do archetypu (ton, styl, treść)
+3. Zaproponuj suggested_actions zgodne ze strategią archetypu
+4. Określ next_best_action na podstawie psychologii klienta
+5. Wygeneruj qualifying_questions które pogłębią zrozumienie tego archetypu
+
+KONTEKST KLIENTA:
+- Alias: {client_profile.get('alias', 'Unknown')}
+- Archetyp (stary): {client_profile.get('archetype', 'Unknown')}
+- Notatki: {client_profile.get('notes', 'Brak')}
+
+OBECNA SYTUACJA:
+{user_input}
+
+Wygeneruj odpowiedź w standardowym formacie JSON, ale DOSTOSOWANĄ do archetypu {archetype_name}.
+"""
+
+            # Wywołaj AI z psychology-informed promptem
+            for attempt in range(self.max_retries):
+                try:
+                    llm_response = await asyncio.to_thread(
+                        self._sync_ollama_call,
+                        psychology_informed_prompt,
+                        "Wygeneruj psychology-enhanced strategy zgodnie z instrukcjami."
+                    )
+                    
+                    # Parsuj i enhanced response
+                    parsed_response = self._parse_llm_response(llm_response)
+                    
+                    if parsed_response:
+                        # Dodaj archetype info do response
+                        parsed_response['customer_archetype'] = customer_archetype
+                        parsed_response['psychology_enhanced'] = True
+                        parsed_response['confidence_level'] = session_psychology.get('confidence', 0)
+                        
+                        logger.info(f"✅ [ARCHETYPE STRATEGY] Strategy wygenerowana dla {archetype_name}")
+                        return parsed_response
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ [ARCHETYPE STRATEGY] Próba {attempt + 1} failed: {e}")
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep((attempt + 1) * 2)
+            
+            # Fallback jeśli AI failures
+            return self._create_archetype_fallback_response(user_input, customer_archetype)
+            
+        except Exception as e:
+            logger.error(f"❌ [ARCHETYPE STRATEGY] Error: {e}")
+            return self._create_archetype_fallback_response(user_input, customer_archetype)
+
+    def _create_archetype_fallback_response(self, user_input: str, archetype: Dict) -> Dict[str, Any]:
+        """Fallback response z archetype info"""
+        archetype_name = archetype.get('archetype_name', 'Klient')
+        sales_strategy = archetype.get('sales_strategy', {})
+        
+        return {
+            "main_analysis": f"Rozmawiasz z klientem typu {archetype_name}. Dostosuj podejście do jego profilu psychologicznego.",
+            "quick_response": {
+                "id": "archetype_fallback",
+                "text": f"Na podstawie Twojego profilu jako {archetype_name}, sugeruję..."
+            },
+            "suggested_actions": [
+                {"action": action, "reasoning": f"Strategia dla {archetype_name}"}
+                for action in sales_strategy.get('do', ['Dostosuj podejście do klienta'])[:3]
+            ],
+            "next_best_action": f"Zastosuj strategię dla {archetype_name}",
+            "customer_archetype": archetype,
+            "psychology_enhanced": True,
+            "is_fallback": True
+        }
+
 
 # Import Qdrant service for singleton creation
 from .qdrant_service import qdrant_service
@@ -875,14 +1551,97 @@ async def generate_sales_analysis(
     user_input: str,
     client_profile: Dict[str, Any],
     session_history: List[Dict[str, Any]],
-    session_context: Optional[Dict[str, Any]] = None
+    session_context: Optional[Dict[str, Any]] = None,
+    session_psychology: Optional[Dict[str, Any]] = None,  # NOWY v3.0: Psychology z sesji
+    customer_archetype: Optional[Dict[str, Any]] = None   # NOWY v3.0: Archetyp klienta
 ) -> Dict[str, Any]:
     """
-    Wygeneruj analizę sprzedażową Tesla - główna funkcja eksportowa z integracją RAG
+    ENHANCED v3.0: Wygeneruj analizę sprzedażową z psychology-informed strategy
+    
+    Funkcja została rozszerzona o session-level psychology i customer archetype
+    które wpływają na generowaną strategię i sugerowane odpowiedzi.
     """
-    return await ai_service.generate_analysis(
+    return await ai_service.generate_psychology_enhanced_analysis(
         user_input=user_input,
         client_profile=client_profile,
         session_history=session_history,
-        session_context=session_context
+        session_context=session_context,
+        session_psychology=session_psychology,
+        customer_archetype=customer_archetype
     )
+
+
+async def generate_psychometric_analysis(
+    user_input: str,
+    session_history: List[Dict[str, Any]],
+    client_profile: Dict[str, Any],
+    interactive_mode: bool = True
+) -> Optional[Dict[str, Any]]:
+    """
+    Wygeneruj analizę psychometryczną klienta - funkcja eksportowa dla Modułu 2
+    
+    Args:
+        interactive_mode: Jeśli True, AI może zadawać pytania gdy brak danych
+    """
+    return await ai_service.generate_psychometric_analysis(
+        user_input=user_input,
+        session_history=session_history,
+        client_profile=client_profile,
+        interactive_mode=interactive_mode
+    )
+
+
+async def generate_enhanced_psychometric_questions(
+    user_input: str,
+    session_context: Dict[str, Any],
+    client_profile: Dict[str, Any]
+) -> List[str]:
+    """
+    Wygeneruj strategiczne pytania dla lepszego zrozumienia psychologii klienta
+    Gdy standardowa analiza nie daje wystarczających danych
+    """
+    try:
+        prompt = f"""
+Jesteś ekspertem psychologii sprzedaży. Na podstawie bieżącej sytuacji wygeneruj 3-5 strategicznych pytań 
+które pomogą sprzedawcy Tesla lepiej zrozumieć psychologię klienta.
+
+SYTUACJA:
+- Input sprzedawcy: "{user_input}"
+- Archetyp klienta: {client_profile.get('archetype', 'Nieznany')}
+- Kontekst: {session_context}
+
+CELE PYTAŃ:
+1. Zrozumienie stylu podejmowania decyzji (analityczny vs impulsywny)
+2. Identyfikacja głównych motywatorów (status, bezpieczeństwo, technologia, ekologia)
+3. Wykrycie obaw i potencjalnych zastrzeżeń
+4. Określenie stylu komunikacji
+
+Zwróć JSON:
+{
+  "probing_questions": [
+    "Pytanie o styl decyzyjny...",
+    "Pytanie o motywacje...",
+    "Pytanie o obawy...",
+    "Pytanie o komunikację..."
+  ]
+}
+"""
+
+        response = await ai_service._call_llm_with_retry(prompt, "")
+        
+        try:
+            start_idx = response.find('{')
+            end_idx = response.rfind('}') + 1
+            json_str = response[start_idx:end_idx]
+            parsed = json.loads(json_str)
+            return parsed.get('probing_questions', [])
+        except:
+            return [
+                "Jakie czynniki są dla Pana najważniejsze przy wyborze samochodu?",
+                "Czy preferuje Pan podejmować decyzje szybko czy wolą dokładnie przeanalizować opcje?",
+                "Jakie są Pana główne obawy związane z samochodami elektrycznymi?",
+                "Czy ważne jest dla Pana co pomyślą inni o Pańskim samochodzie?"
+            ]
+    except Exception as e:
+        logger.warning(f"Błąd podczas generowania enhanced questions: {e}")
+        return []

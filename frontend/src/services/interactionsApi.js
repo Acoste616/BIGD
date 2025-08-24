@@ -37,6 +37,41 @@ export const getInteractionById = async (interactionId) => {
 };
 
 /**
+ * NOWY: Odpowiedź na pytanie pomocnicze AI (Interactive Psychometric Flow)
+ * @param {number} interactionId - ID interakcji bazowej
+ * @param {Object} clarifyingAnswer - Odpowiedź na pytanie {question, selected_option, psychological_target}
+ * @returns {Promise<Object>} Potwierdzenie i informacje o aktualizacji
+ */
+export const sendClarifyingAnswer = async (interactionId, clarifyingAnswer) => {
+  if (!interactionId) {
+    throw new Error('Interaction ID is required');
+  }
+  
+  if (!clarifyingAnswer || !clarifyingAnswer.selected_option) {
+    throw new Error('Clarifying answer with selected_option is required');
+  }
+  
+  console.log('📤 interactionsApi - wysyłam clarifying answer:', clarifyingAnswer);
+  
+  return await apiClient.post(`/interactions/${interactionId}/clarify`, clarifyingAnswer);
+};
+
+// NOWY v3.0: Session-level question answer endpoint
+export const sendSessionQuestionAnswer = async (sessionId, questionAnswer) => {
+  if (!sessionId) {
+    throw new Error('Session ID is required');
+  }
+  
+  if (!questionAnswer || !questionAnswer.question_id || !questionAnswer.answer) {
+    throw new Error('Question answer with question_id and answer is required');
+  }
+  
+  console.log('📤 v3.0 interactionsApi - wysyłam session question answer:', questionAnswer);
+  
+  return await apiClient.post(`/sessions/${sessionId}/answer_question`, questionAnswer);
+};
+
+/**
  * Tworzy nową interakcję w sesji
  * @param {number} sessionId - ID sesji
  * @param {Object} interactionData - Dane interakcji

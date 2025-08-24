@@ -1,0 +1,144 @@
+import React from 'react';
+import { 
+    ResponsiveContainer, 
+    RadarChart, 
+    PolarGrid, 
+    PolarAngleAxis, 
+    PolarRadiusAxis, 
+    Radar,
+    Tooltip
+} from 'recharts';
+import { 
+    Box, 
+    Typography,
+    useTheme
+} from '@mui/material';
+
+// Mapowanie nazw traits na polskie etykiety
+const traitLabels = {
+    openness: 'Otwartość',
+    conscientiousness: 'Sumienność', 
+    extraversion: 'Ekstrawersja',
+    agreeableness: 'Ugodowość',
+    neuroticism: 'Neurotyczność'
+};
+
+// Custom Tooltip z strategią sprzedażową
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <Box
+                sx={{
+                    bgcolor: 'background.paper',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    p: 2,
+                    maxWidth: 300,
+                    boxShadow: 2
+                }}
+            >
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    {label}: {data.A}/10
+                </Typography>
+                
+                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                    <strong>Uzasadnienie:</strong>
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 2, fontSize: '0.8rem' }}>
+                    {data.rationale}
+                </Typography>
+                
+                <Typography variant="body2" sx={{ mb: 1, color: 'primary.main', fontWeight: 'bold' }}>
+                    💡 Strategia Sprzedażowa:
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                    {data.strategy}
+                </Typography>
+            </Box>
+        );
+    }
+    return null;
+};
+
+const BigFiveRadarChart = ({ data }) => {
+    const theme = useTheme();
+    
+    // Przekształć dane z formatu API na poprawny format dla Recharts RadarChart
+    const chartData = React.useMemo(() => {
+        if (!data) return [];
+        
+        return Object.entries(data).map(([key, trait]) => ({
+            subject: traitLabels[key] || key,        // ✅ POPRAWKA: subject zamiast trait
+            A: trait.score || 0,                     // ✅ POPRAWKA: A zamiast score  
+            rationale: trait.rationale,
+            strategy: trait.strategy,
+            fullMark: 10
+        }));
+    }, [data]);
+
+    if (!data || chartData.length === 0) {
+        return (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body2" color="text.secondary">
+                    Brak danych Big Five do wyświetlenia
+                </Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ width: '100%', minWidth: 350, height: 400 }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={chartData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                    <PolarGrid 
+                        stroke={theme.palette.divider}
+                        strokeWidth={1}
+                    />
+                    <PolarAngleAxis 
+                        dataKey="subject"
+                        tick={{ 
+                            fontSize: 12, 
+                            fill: theme.palette.text.primary,
+                            fontWeight: 500
+                        }}
+                    />
+                    <PolarRadiusAxis 
+                        angle={90}
+                        domain={[0, 10]}
+                        tick={{ 
+                            fontSize: 10, 
+                            fill: theme.palette.text.secondary 
+                        }}
+                        tickCount={6}
+                    />
+                    <Radar
+                        name="Big Five"
+                        dataKey="A"
+                        stroke={theme.palette.primary.main}
+                        fill={theme.palette.primary.main}
+                        fillOpacity={0.2}
+                        strokeWidth={2}
+                        dot={{ 
+                            r: 4, 
+                            fill: theme.palette.primary.main,
+                            strokeWidth: 2,
+                            stroke: theme.palette.background.paper
+                        }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                </RadarChart>
+            </ResponsiveContainer>
+            
+            {/* Legenda */}
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                    Skala: 0-10 • Najedź na punkt aby zobaczyć strategię sprzedażową
+                </Typography>
+            </Box>
+        </Box>
+    );
+};
+
+export default BigFiveRadarChart;

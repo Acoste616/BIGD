@@ -10,6 +10,74 @@ if TYPE_CHECKING:
     from .client import Client
 
 
+class PsychometricTrait(BaseModel):
+    """
+    Cecha psychometryczna z oceną, uzasadnieniem i strategią
+    """
+    score: int = Field(..., ge=0, le=10, description="Ocena w skali 0-10")
+    rationale: str = Field(..., description="Uzasadnienie AI, dlaczego przyznano taką ocenę, z przykładami z tekstu")
+    strategy: str = Field(..., description="Konkretna porada sprzedażowa związana z tym wynikiem")
+
+
+class BigFiveProfile(BaseModel):
+    """
+    Profil Big Five - pięć głównych wymiarów osobowości
+    """
+    openness: PsychometricTrait = Field(..., description="Otwartość na doświadczenia")
+    conscientiousness: PsychometricTrait = Field(..., description="Sumienność")
+    extraversion: PsychometricTrait = Field(..., description="Ekstrawersja")
+    agreeableness: PsychometricTrait = Field(..., description="Ugodowość")
+    neuroticism: PsychometricTrait = Field(..., description="Neurotyczność")
+
+
+class DISCProfile(BaseModel):
+    """
+    Profil DISC - style zachowania
+    """
+    dominance: PsychometricTrait = Field(..., description="Dominacja - bezpośredni, asertywny")
+    influence: PsychometricTrait = Field(..., description="Wpływ - towarzyski, optymistyczny")
+    steadiness: PsychometricTrait = Field(..., description="Stałość - cierpliwy, lojalny")
+    compliance: PsychometricTrait = Field(..., description="Sumienność - analityczny, precyzyjny")
+
+
+class SchwartzValue(BaseModel):
+    """
+    Wartość według modelu Schwartza
+    """
+    value_name: str = Field(..., description="Nazwa wartości (np. Bezpieczeństwo, Osiągnięcia)")
+    is_present: bool = Field(..., description="Czy wartość jest obecna w wypowiedziach klienta")
+    rationale: str = Field(..., description="Uzasadnienie obecności lub braku tej wartości")
+    strategy: str = Field(..., description="Strategia sprzedażowa związana z tą wartością")
+
+
+class ClarifyingQuestion(BaseModel):
+    """
+    Pytanie pomocnicze AI dla sprzedawcy (nie dla klienta)
+    """
+    id: str = Field(..., description="Unikalne ID pytania")
+    question: str = Field(..., description="Pytanie do sprzedawcy o jego obserwacje")
+    option_a: str = Field(..., description="Opcja A (np. 'Szybko, intuicyjnie')")
+    option_b: str = Field(..., description="Opcja B (np. 'Wolno, po analizie')")
+    psychological_target: str = Field(..., description="Jaką cechę to pytanie ma określić")
+    
+
+class PsychometricAnalysis(BaseModel):
+    """
+    Kompletna analiza psychometryczna klienta z confidence scoring
+    """
+    big_five: BigFiveProfile = Field(..., description="Analiza Big Five")
+    disc: DISCProfile = Field(..., description="Analiza DISC")
+    schwartz_values: List[SchwartzValue] = Field(..., description="Lista wartości Schwartza")
+    
+    # NOWE POLA dla dwuetapowej analizy
+    confidence_score: int = Field(..., ge=0, le=100, description="Ogólna pewność analizy (0-100)")
+    needs_clarification: bool = Field(False, description="Czy AI potrzebuje dodatkowych informacji")
+    clarifying_questions: List[ClarifyingQuestion] = Field(default=[], description="Pytania pomocnicze dla sprzedawcy")
+    analysis_stage: str = Field("preliminary", description="preliminary | confirmed | enhanced")
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 class InteractionBase(BaseModel):
     """
     Bazowy schemat interakcji - wspólne pola
@@ -33,6 +101,11 @@ class InteractionCreateNested(BaseModel):
     """
     user_input: str = Field(..., min_length=1, description="Wejście od użytkownika")
     interaction_type: Optional[str] = Field(None, max_length=50, description="Typ interakcji (observation/question/objection)")
+    
+    # NOWE POLA dla Interactive Psychometric Flow
+    additional_context: Optional[Dict[str, Any]] = Field(None, description="Dodatkowy kontekst z odpowiedzi na pytania pomocnicze")
+    clarifying_answer: Optional[Dict[str, str]] = Field(None, description="Odpowiedź na pytanie pomocnicze AI")
+    parent_interaction_id: Optional[int] = Field(None, description="ID interakcji bazowej dla clarification")
 
 
 class InteractionUpdate(BaseModel):
@@ -57,6 +130,7 @@ class Interaction(InteractionBase):
     identified_signals: Optional[List[str]] = Field(default=[], description="Zidentyfikowane sygnały")
     archetype_match: Optional[str] = Field(None, description="Dopasowany archetyp")
     feedback_data: Optional[List[Dict[str, Any]]] = Field(default=[], description="Lista ocen feedbacku")
+    psychometric_analysis: Optional[Dict[str, Any]] = Field(None, description="Analiza psychometryczna z Modułu 2")
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -148,6 +222,14 @@ class InteractionResponse(BaseModel):
     # Następne kroki
     next_best_action: str = Field(..., description="Najważniejsza następna akcja wynikająca z całokształtu analizy")
     follow_up_timing: Optional[str] = Field(None, description="Rekomendowany timing następnego kontaktu")
+    
+    # Analiza psychometryczna (Moduł 2) - opcjonalna, wykonywana w "wolnej ścieżce"
+    psychometric_analysis: Optional[PsychometricAnalysis] = Field(None, description="Szczegółowa analiza psychometryczna klienta")
+    
+    # NOWE POLA dla Interactive Psychometric Flow
+    needs_more_info: bool = Field(False, description="Czy AI potrzebuje więcej informacji od sprzedawcy")
+    clarifying_questions: List[ClarifyingQuestion] = Field(default=[], description="Pytania pomocnicze dla sprzedawcy")
+    analysis_confidence: int = Field(50, ge=0, le=100, description="Pewność analizy psychometrycznej")
     
     model_config = ConfigDict(from_attributes=True)
 

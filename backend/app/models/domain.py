@@ -29,6 +29,13 @@ class Session(Base):
     # Zmiany z Planu v2.4 (Moduł 5)
     status = Column(String, default='active', nullable=False)
     outcome_data = Column(JSONB, nullable=True)
+    
+    # NOWA ARCHITEKTURA v3.0: SESSION-LEVEL CUMULATIVE PSYCHOLOGY
+    cumulative_psychology = Column(JSONB, nullable=True, comment="Ciągły, ewoluujący profil psychologiczny całej sesji")
+    psychology_confidence = Column(Integer, default=0, comment="Poziom pewności AI co do profilu (0-100%)")
+    active_clarifying_questions = Column(JSONB, nullable=True, comment="Aktywne pytania pomocnicze czekające na odpowiedź sprzedawcy")
+    customer_archetype = Column(JSONB, nullable=True, comment="Finalny, zsyntetyzowany archetyp klienta i kluczowe porady")
+    psychology_updated_at = Column(DateTime, nullable=True, comment="Ostatnia aktualizacja profilu psychologicznego")
 
     client = relationship("Client", back_populates="sessions")
     interactions = relationship("Interaction", back_populates="session")
@@ -44,5 +51,7 @@ class Interaction(Base):
 
     # Zmiana z Planu v2.4 (Moduł 1)
     feedback_data = Column(JSONB, nullable=True, default=lambda: [])
+    
+    # UWAGA: psychometric_analysis USUNIĘTE - przeniesione na poziom Session jako cumulative_psychology
 
     session = relationship("Session", back_populates="interactions")
