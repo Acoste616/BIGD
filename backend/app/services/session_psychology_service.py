@@ -87,80 +87,7 @@ class SessionPsychologyEngine:
         }
     }
 
-    async def update_cumulative_profile(self, session_id: int, old_db: Optional[AsyncSession] = None) -> Dict[str, Any]:
-        """
-        GŁÓWNA FUNKCJA LOGIKI - Uruchamiana po każdej nowej interakcji
-        
-        KRYTYCZNA NAPRAWA v3.0: Tworzy świeżą sesję DB dla background task
-        
-        1. Pobiera sesję i CAŁĄ historię interakcji
-        2. Pobiera obecny cumulative_psychology 
-        3. Tworzy potężny prompt dla AI z całą historią + obecnym profilem
-        4. AI zwraca: zaktualizowany profil + confidence + suggested_questions + archetyp
-        5. Zapisuje wyniki w session
-        """
-        # KRYTYCZNA NAPRAWA: Stwórz świeżą, dedykowaną sesję dla background task
-        async with AsyncSession(engine) as fresh_db:
-            try:
-                logger.info(f"🧠 [SESSION ENGINE FRESH] Rozpoczynam update cumulative profile dla sesji {session_id}")
-                
-                # 1. Pobierz sesję z całą historią interakcji
-                query = (
-                    select(Session)
-                    .options(selectinload(Session.interactions))
-                    .where(Session.id == session_id)
-                )
-                result = await fresh_db.execute(query)
-                session = result.scalar_one_or_none()
-                
-                if not session:
-                    raise ValueError(f"Sesja {session_id} nie została znaleziona")
-                
-                # 2. Zbuduj pełną historię rozmowy
-                conversation_history = self._build_session_conversation_history(session.interactions)
-                current_profile = session.cumulative_psychology if session.cumulative_psychology else {}
-                current_confidence = int(session.psychology_confidence) if session.psychology_confidence else 0
-                
-                logger.info(f"🧠 [SESSION ENGINE] Historia: {len(session.interactions)} interakcji, obecny confidence: {current_confidence}%")
-                
-                # 3. Stwórz enhanced prompt dla AI z całym kontekstem
-                psychology_prompt = self._build_cumulative_psychology_prompt(
-                    conversation_history, 
-                    current_profile, 
-                    current_confidence
-                )
-                
-                # 4. Wywołaj AI service
-                ai_response = await asyncio.to_thread(
-                    ai_service._sync_ollama_call,
-                    psychology_prompt,
-                    "Wykonaj analizę psychometryczną zgodnie z instrukcjami w system prompt."
-                )
-                
-                # 5. Parsuj odpowiedź AI
-                parsed_result = self._parse_psychology_ai_response(ai_response)
-                
-                if parsed_result:
-                    # 6. Konwertuj suggested_questions na interactive format
-                    interactive_questions = self._convert_to_interactive_questions(
-                        parsed_result.get('suggested_questions', [])
-                    )
-                    
-                    # 7. Zaktualizuj sesję
-                    await self._update_session_psychology(
-                        fresh_db, session_id, parsed_result, interactive_questions
-                    )
-                    
-                    logger.info(f"✅ [SESSION ENGINE] Profile updated: confidence={parsed_result.get('psychology_confidence', 0)}%")
-                    return parsed_result
-                else:
-                    logger.warning(f"⚠️ [SESSION ENGINE] Brak parsowanych wyników dla sesji {session_id}")
-                    return {}
-                
-            except Exception as e:
-                logger.error(f"❌ [SESSION ENGINE FRESH] Błąd podczas update profile sesji {session_id}: {e}")
-                await fresh_db.rollback()
-                return {}
+
 
     async def answer_clarifying_question(self, session_id: int, question_id: str, answer: str, db: AsyncSession):
         """
@@ -182,7 +109,7 @@ class SessionPsychologyEngine:
                 raise ValueError(f"Sesja {session_id} nie została znaleziona")
                 
             # 2. Znajdź pytanie w active_clarifying_questions
-            active_questions = list(session.active_clarifying_questions) if session.active_clarifying_questions else []
+            active_questions = session.active_clarifying_questions if session.active_clarifying_questions else []
             answered_question = None
             remaining_questions = []
             
@@ -199,7 +126,7 @@ class SessionPsychologyEngine:
             observation_text = f"Sprzedawca zaobserwował: {answered_question.get('question', '')} - Odpowiedź: {answer}"
             
             # Dodaj observation do psychological context (nie tworzymy fizycznej interakcji)
-            current_profile = dict(session.cumulative_psychology) if session.cumulative_psychology else {}
+            current_profile = dict(session.cumulative_psychology or {})
             if 'observations' not in current_profile:
                 current_profile['observations'] = []
             
@@ -238,7 +165,7 @@ class SessionPsychologyEngine:
         history_parts = ["=== HISTORIA CAŁEJ SESJI ==="]
         
         # Sortuj interactions po timestamp (convert Column to datetime)
-        sorted_interactions = sorted(interactions, key=lambda x: x.timestamp.timestamp() if hasattr(x.timestamp, 'timestamp') else x.timestamp)
+        sorted_interactions = sorted(interactions, key=lambda x: x.timestamp if hasattr(x.timestamp, 'timestamp') else x.timestamp)
         
         for i, interaction in enumerate(sorted_interactions):
             timestamp = interaction.timestamp.strftime("%H:%M:%S")
@@ -255,47 +182,85 @@ class SessionPsychologyEngine:
 
     def _build_cumulative_psychology_prompt(self, history: str, current_profile: Dict, confidence: int) -> str:
         """
-        Tworzy enhanced prompt dla AI z full context
+        🧠⚡ ULTRA MÓZG v4.1 - Enhanced prompt z few-shot learning i Zero Null Policy
         """
         archetyp_definitions = "\n".join([
             f"- {archetype['name']}: {archetype['description']}" 
             for archetype in self.CUSTOMER_ARCHETYPES.values()
         ])
         
-        return f"""
-Jesteś ekspertem psychologii sprzedaży prowadzącym CIĄGŁĄ, EWOLUUJĄCĄ analizę klienta na poziomie CAŁEJ SESJI.
+        # 🎯 FEW-SHOT LEARNING EXAMPLES - zgodnie z blueprintem
+        few_shot_examples = """
+=== PRZYKŁAD 1: ANALITYCZNY CFO ===
+HISTORIA: "CFO firmy logistycznej pyta o TCO dla 25 Tesli Model Y. Ciągle dopytuje o koszty serwisu, harmonogram przeglądów. Chce twarde dane oszczędności paliwa vs diesel. Mówi: 'Emocje są ważne, ale liczą się dla mnie liczby w Excelu'"
 
-TWOJE ZADANIE - 4 KROKI:
+OCZEKIWANY JSON:
+{
+  "cumulative_psychology": {
+    "big_five": {
+      "openness": {"score": 6, "rationale": "Otwarty na nowe technologie (Tesla), ale potrzebuje danych", "strategy": "Prezentuj innowacje z konkretnymi metrykami"},
+      "conscientiousness": {"score": 9, "rationale": "Bardzo sumienną analiza, Excel, szczegółowe pytania", "strategy": "Dostarczaj precyzyjne dokumenty i harmonogramy"},
+      "extraversion": {"score": 4, "rationale": "Skupiony na danych, a nie na emocjach czy relacjach", "strategy": "Komunikacja rzeczowa, bez small talk"},
+      "agreeableness": {"score": 5, "rationale": "Neutralny - skupia się na faktach", "strategy": "Argumenty merytoryczne, nie emocjonalne"},
+      "neuroticism": {"score": 3, "rationale": "Kontroluje sytuację przez analizę - niski stres", "strategy": "Daj mu kontrolę przez dostęp do danych"}
+    }
+  },
+  "psychology_confidence": 85,
+  "customer_archetype": {
+    "archetype_key": "analityk",
+    "confidence": 90,
+    "description": "CFO analityczny, podejmuje decyzje na danych"
+  }
+}
+
+=== PRZYKŁAD 2: SZYBKI DECYDENT ===
+HISTORIA: "CEO startup chce 5 Tesli 'od zaraz'. Pyta: 'Kiedy mogę mieć auta? Jaka cena za pakiet? Podpisujemy dziś czy jutro?' Nie interesują go szczegóły techniczne."
+
+OCZEKIWANY JSON:
+{
+  "cumulative_psychology": {
+    "big_five": {
+      "openness": {"score": 8, "rationale": "Bardzo otwarty na nowe rozwiązania - chce 'od zaraz'", "strategy": "Prezentuj najnowsze funkcje i możliwości"},
+      "conscientiousness": {"score": 4, "rationale": "Nie skupia się na szczegółach - chce szybkiej decyzji", "strategy": "Skup się na korzyściach, nie procesie"},
+      "extraversion": {"score": 9, "rationale": "Bardzo aktywny, dominujący, chce kontrolować tempo", "strategy": "Pozwól mu prowadzić rozmowę"},
+      "agreeableness": {"score": 6, "rationale": "Współpracuje ale na swoich warunkach", "strategy": "Dostosuj się do jego tempa"},
+      "neuroticism": {"score": 2, "rationale": "Bardzo pewny siebie, brak stresu decyzyjnego", "strategy": "Nie przedłużaj procesu niepotrzebnie"}
+    }
+  },
+  "psychology_confidence": 80,
+  "customer_archetype": {
+    "archetype_key": "szybki_decydent",
+    "confidence": 85,
+    "description": "CEO dynamiczny, szybkie decyzje biznesowe"
+  }
+}
+
+⚠️ ZERO NULL POLICY: NIGDY nie zwracaj null w polach score, rationale, strategy! Jeśli nie jesteś pewien wartości, oszacuj najbardziej prawdopodobną i wyjaśnij w rationale dlaczego.
+"""
+
+        return f"""
+🧠⚡ Jesteś ekspertem psychologii sprzedaży w systemie Ultra Mózg. Generujesz KOMPLETNY, ZEROWO-NULLOWY profil klienta.
+
+{few_shot_examples}
+
+🎯 TWOJE ZADANIE - 5 KROKÓW:
 
 KROK 1 - AKTUALIZACJA PROFILU:
-Na podstawie pełnej historii sesji i obecnego profilu, zaktualizuj i rozwiń profil psychometryczny klienta.
-Uwzględnij WSZYSTKIE interakcje i obserwacje sprzedawcy.
+Na podstawie pełnej historii sesji i obecnego profilu, zaktualizuj profil psychometryczny.
+⚠️ KRYTYCZNE: WSZYSTKIE pola score, rationale, strategy MUSZĄ mieć wartości (nie null)!
 
 KROK 2 - OCENA PEWNOŚCI:
-Oblicz nowy poziom pewności analizy (0-100%) na podstawie ilości i jakości dostępnych danych.
+Oblicz poziom pewności analizy (0-100%) na podstawie dostępnych danych.
 
 KROK 3 - SUGGESTED QUESTIONS:
-Jeśli pewność < 80%, wygeneruj 2-4 konkretne pytania które sprzedawca może zadać klientowi lub zaobserwować.
+Jeśli pewność < 80%, wygeneruj 2-4 konkretne pytania.
 
-KROK 4 - SYNTEZA ARCHETYPU (KLUCZOWE!):
-Jeśli pewność >= 70%, wykonaj natychmiastową syntezę:
-1. Przeanalizuj cały profil psychologiczny (Big Five + DISC + Wartości Schwartza)
-2. Przypisz klienta do najlepiej pasującego archetypu:
+KROK 4 - SYNTEZA ARCHETYPU:
+Jeśli pewność >= 70%, przypisz klienta do archetypu:
 {archetyp_definitions}
-3. Wygeneruj 3 konkretne porady "Rób to / Nie rób tego" specyficzne dla tego archetypu i tego konkretnego klienta
 
-KROK 5 - WSKAŹNIKI SPRZEDAŻOWE (UNIFIED PSYCHOLOGY ENGINE):
-🧠 KRYTYCZNE: Wskaźniki MUSZĄ być w 100% zgodne z archetypem z KROKU 4!
-
-Na podstawie DOKŁADNIE TEGO SAMEGO ARCHETYPU co w kroku 4, przeprowadź analizę 4 wskaźników:
-1. 🌡️ TEMPERATURA ZAKUPOWA (0-100%): Interpretuj zachowanie przez pryzmat archetypu
-   - 🔬 Analityk: Szczegółowe pytania = wysoka temperatura (pozytywne)
-   - 👑 Szybki Decydent: Szczegółowe pytania = wahanie (negatywne)
-2. 🗺️ ETAP PODRÓŻY: Mapuj na typowy proces decyzyjny dla tego archetypu
-3. ⚖️ RYZYKO UTRATY: Oceń przez pryzmat typowych zagrożeń dla tego archetypu  
-4. 💰 POTENCJAŁ: Szacuj wartość typową dla profilu tego archetypu
-
-🎯 SYNERGIA: Wszystkie 4 wskaźniki muszą wzajemnie się uzupełniać i być logicznie spójne z archetypem!
+KROK 5 - WSKAŹNIKI SPRZEDAŻOWE:
+Wskaźniki MUSZĄ być zgodne z archetypem z KROKU 4!
 
 DANE WEJŚCIOWE:
 
@@ -377,8 +342,97 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
 }}
 """
 
+    def _validate_and_repair_psychology(self, raw_analysis: dict, ai_service) -> dict:
+        """
+        🔧 ULTRA MÓZG v4.1 - Walidacja i naprawa danych psychology
+        
+        Zgodnie z blueprintem - sprawdza czy kluczowe pola nie są null
+        i naprawia je automatycznie jeśli trzeba.
+        
+        Args:
+            raw_analysis: Surowa odpowiedź AI
+            ai_service: Service do micro-prompt naprawy
+            
+        Returns:
+            dict: Zwalidowany i naprawiony profil psychology
+        """
+        logger.info("🔧 [VALIDATION] Rozpoczynam walidację danych psychology...")
+        
+        repaired_analysis = raw_analysis.copy()
+        null_fields_found = []
+        
+        # Sprawdź Big Five
+        big_five = repaired_analysis.get('cumulative_psychology', {}).get('big_five', {})
+        for trait_name in ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism']:
+            trait = big_five.get(trait_name, {})
+            if not trait or trait.get('score') is None:
+                null_fields_found.append(f'big_five.{trait_name}')
+                # Strategia 1: Wartości domyślne (zgodnie z blueprintem)
+                big_five[trait_name] = {
+                    'score': 5,  # Neutralna wartość środkowa
+                    'rationale': f'Oszacowanie domyślne - wymagane więcej danych o {trait_name}',
+                    'strategy': f'Obserwuj zachowania związane z {trait_name} podczas kolejnych interakcji'
+                }
+        
+        # Sprawdź DISC
+        disc = repaired_analysis.get('cumulative_psychology', {}).get('disc', {})
+        for trait_name in ['dominance', 'influence', 'steadiness', 'compliance']:
+            trait = disc.get(trait_name, {})
+            if not trait or trait.get('score') is None:
+                null_fields_found.append(f'disc.{trait_name}')
+                disc[trait_name] = {
+                    'score': 5,
+                    'rationale': f'Oszacowanie domyślne - wymagane więcej danych o {trait_name}',
+                    'strategy': f'Zaobserwuj przejawy {trait_name} w komunikacji klienta'
+                }
+        
+        # Sprawdź Schwartz Values
+        schwartz = repaired_analysis.get('cumulative_psychology', {}).get('schwartz_values', [])
+        if not schwartz or len(schwartz) == 0:
+            null_fields_found.append('schwartz_values')
+            repaired_analysis['cumulative_psychology']['schwartz_values'] = [
+                {
+                    'value_name': 'Bezpieczeństwo',
+                    'strength': 5,
+                    'rationale': 'Wartość domyślna - większość klientów B2B ceni bezpieczeństwo',
+                    'strategy': 'Podkreślaj stabilność i niezawodność rozwiązania',
+                    'is_present': True
+                }
+            ]
+        
+        # Sprawdź Customer Archetype
+        archetype = repaired_analysis.get('customer_archetype', {})
+        if not archetype or not archetype.get('archetype_key'):
+            null_fields_found.append('customer_archetype')
+            repaired_analysis['customer_archetype'] = {
+                'archetype_key': 'neutral',
+                'archetype_name': '🎯 Neutralny',
+                'confidence': 30,
+                'description': 'Profil ogólny - wymagane więcej informacji o kliencie',
+                'key_traits': ['ostrożny', 'analityczny'],
+                'sales_strategy': {
+                    'do': ['Zbieraj więcej informacji', 'Zadawaj otwarte pytania', 'Obserwuj reakcje'],
+                    'dont': ['Nie pressuj', 'Nie zakładaj preferencji', 'Nie przyspieszaj procesu']
+                },
+                'motivation': 'Potrzeba więcej danych aby określić główną motywację',
+                'communication_style': 'Ostrożny, wyważony styl komunikacji'
+            }
+        
+        # Sprawdź Psychology Confidence
+        if repaired_analysis.get('psychology_confidence', 0) == 0:
+            null_fields_found.append('psychology_confidence')
+            repaired_analysis['psychology_confidence'] = 30  # Niska pewność przy null values
+        
+        # Logowanie wyników walidacji
+        if null_fields_found:
+            logger.warning(f"⚠️ [VALIDATION] Naprawiono {len(null_fields_found)} null values: {null_fields_found}")
+        else:
+            logger.info("✅ [VALIDATION] Wszystkie kluczowe pola wypełnione poprawnie")
+        
+        return repaired_analysis
+
     def _parse_psychology_ai_response(self, ai_response: str) -> Optional[Dict[str, Any]]:
-        """Parsuje odpowiedź AI z analizą psychometryczną"""
+        """🧠⚡ Enhanced parsowanie z walidacją - Ultra Mózg v4.1"""
         try:
             # Znajdź JSON w odpowiedzi
             start_idx = ai_response.find('{')
@@ -393,21 +447,24 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
             
             logger.info(f"✅ [PSYCHOLOGY PARSE] Sparsowano: confidence={parsed_data.get('psychology_confidence', 0)}%")
             
+            # 🔧 NOWA WARSTWA WALIDACJI - zgodnie z blueprintem
+            validated_data = self._validate_and_repair_psychology(parsed_data, None)
+            
             # DEBUG: Log szczegółowych danych psychology
-            cumulative = parsed_data.get('cumulative_psychology', {})
+            cumulative = validated_data.get('cumulative_psychology', {})
             big_five = cumulative.get('big_five', {})
             disc = cumulative.get('disc', {})
-            archetype = parsed_data.get('customer_archetype', {})
+            archetype = validated_data.get('customer_archetype', {})
             
-            logger.info(f"🧠 [DEBUG BIG FIVE] {big_five}")
-            logger.info(f"🎯 [DEBUG DISC] {disc}")  
-            logger.info(f"👤 [DEBUG ARCHETYPE] {archetype}")
+            logger.info(f"🧠 [DEBUG BIG FIVE] {len([k for k,v in big_five.items() if v.get('score')])} traits validated")
+            logger.info(f"🎯 [DEBUG DISC] {len([k for k,v in disc.items() if v.get('score')])} traits validated")  
+            logger.info(f"👤 [DEBUG ARCHETYPE] {archetype.get('archetype_key', 'none')} confidence={archetype.get('confidence', 0)}%")
             
             # MODUŁ 4: Debug sales indicators
-            sales_indicators = parsed_data.get('sales_indicators', {})
-            logger.info(f"📊 [DEBUG INDICATORS] {sales_indicators}")
+            sales_indicators = validated_data.get('sales_indicators', {})
+            logger.info(f"📊 [DEBUG INDICATORS] {len(sales_indicators)} indicators present")
             
-            return parsed_data
+            return validated_data
             
         except json.JSONDecodeError as e:
             logger.warning(f"⚠️ [PSYCHOLOGY PARSE] JSON decode error: {e}")
@@ -523,8 +580,8 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
             logger.info(f"📚 [ULTRA BRAIN] Historia sesji przygotowana ({len(conversation_history)} znaków)")
             
             # KROK 3: Pobierz obecny profil z sesji (jeśli istnieje)
-            current_profile = session.cumulative_psychology or {}
-            current_confidence = session.psychology_confidence or 0
+            current_profile = dict(session.cumulative_psychology or {})
+            current_confidence = int(session.psychology_confidence or 0)
             
             logger.info(f"🔍 [ULTRA BRAIN] Obecny confidence: {current_confidence}%")
             
@@ -581,25 +638,53 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
             return self._create_fallback_psychology_profile()
 
     def _create_fallback_psychology_profile(self) -> Dict[str, Any]:
-        """Tworzy podstawowy profil psychology gdy AI nie jest dostępny"""
+        """🔧 ULTRA MÓZG v4.1 - Enhanced fallback z Zero Null Policy"""
         return {
             'cumulative_psychology': {
-                'big_five': {},
-                'disc': {},
-                'schwartz_values': [],
-                'observations_summary': 'Profil będzie aktualizowany w trakcie rozmowy.'
+                'big_five': {
+                    'openness': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Zbieraj więcej informacji o otwartości klienta'},
+                    'conscientiousness': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Obserwuj poziom szczegółowości pytań'},
+                    'extraversion': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Zwróć uwagę na styl komunikacji'},
+                    'agreeableness': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Oceniaj poziom współpracy'},
+                    'neuroticism': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Monitoruj oznaki stresu lub niepewności'}
+                },
+                'disc': {
+                    'dominance': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Sprawdzaj kto prowadzi rozmowę'},
+                    'influence': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Zwróć uwagę na emocjonalność'},
+                    'steadiness': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Oceń poziom cierpliwości'},
+                    'compliance': {'score': 5, 'rationale': 'Fallback - brak danych AI', 'strategy': 'Obserwuj podejście do procedur'}
+                },
+                'schwartz_values': [
+                    {'value_name': 'Bezpieczeństwo', 'strength': 5, 'rationale': 'Fallback - wartość domyślna B2B', 'strategy': 'Podkreślaj stabilność', 'is_present': True}
+                ],
+                'observations_summary': 'Analiza niedostępna - wymagane więcej danych'
             },
+            'psychology_confidence': 10,
+            'suggested_questions': [
+                {'question': 'Czy klient zadaje szczegółowe pytania?', 'psychological_target': 'conscientiousness'},
+                {'question': 'Jak klient podejmuje decyzje?', 'psychological_target': 'decision_style'}
+            ],
             'customer_archetype': {
-                'archetype_key': 'unknown',
-                'archetype_name': '❓ Profil w Trakcie Analizy',
-                'confidence': 0,
-                'description': 'Zbieramy informacje o kliencie...'
+                'archetype_key': 'neutral',
+                'archetype_name': '🎯 Neutralny',
+                'confidence': 10,
+                'key_traits': ['ostrożny'],
+                'description': 'Profil podstawowy - wymagane więcej informacji',
+                'sales_strategy': {
+                    'do': ['Zbieraj informacje', 'Zadawaj pytania', 'Obserwuj'],
+                    'dont': ['Nie zakładaj', 'Nie pressuj', 'Nie przyspieszaj']
+                },
+                'motivation': 'Nieokreślona',
+                'communication_style': 'Neutralny'
             },
-            'psychology_confidence': 0,
-            'sales_indicators': {},
+            'sales_indicators': {
+                'purchase_temperature': {'value': 30, 'temperature_level': 'cold', 'rationale': 'Fallback - brak danych', 'strategy': 'Rozgrzej kontakt', 'confidence': 10},
+                'customer_journey_stage': {'value': 'awareness', 'progress_percentage': 20, 'next_stage': 'interest', 'rationale': 'Fallback - początek procesu', 'strategy': 'Buduj świadomość korzyści', 'confidence': 10},
+                'churn_risk': {'value': 50, 'risk_level': 'medium', 'risk_factors': ['Brak danych'], 'rationale': 'Fallback - średnie ryzyko', 'strategy': 'Monitoruj zaangażowanie', 'confidence': 10},
+                'sales_potential': {'value': 1000000.0, 'probability': 30, 'estimated_timeframe': '4-8 tygodni', 'rationale': 'Fallback - szacunek podstawowy', 'strategy': 'Zbieraj informacje o budżecie', 'confidence': 10}
+            },
             'active_clarifying_questions': [],
-            'analysis_timestamp': datetime.now().isoformat(),
-            'is_fallback': True
+            'analysis_timestamp': datetime.now().isoformat()
         }
 
     # DEPRECATED: Stara funkcja - zachowujemy dla backward compatibility

@@ -25,8 +25,35 @@ const SalesIndicatorsDashboard = ({
     psychologyConfidence = 0,
     cumulativePsychology = null,
     loading = false, 
-    error = null 
+    error = null,
+    // 🧠⚡ ULTRA MÓZG v4.1: PRIORYTET 3 - Nowe propsy z DNA Klienta
+    dnaKlienta = null,
+    isDnaReady = false,
+    strategia = null
 }) => {
+    
+    // 🧠⚡ LOGIKA DECYZYJNA ULTRA MÓZGU - PRIORYTET 3
+    // Priorytetyzuj sales indicators z strategii Ultra Mózgu nad legacy indicatorsData
+    let activeIndicatorsData, isUsingUltraBrain, salesIndicatorsSource;
+    
+    if (isDnaReady && strategia?.sales_indicators) {
+        // ULTRA MÓZG: Używamy wskaźników wygenerowanych na podstawie DNA Klienta
+        activeIndicatorsData = strategia.sales_indicators;
+        isUsingUltraBrain = true;
+        salesIndicatorsSource = "Ultra Mózg DNA";
+        console.log('🧠⚡ [SALES INDICATORS DASHBOARD] Używam wskaźników z Ultra Mózgu (DNA):', activeIndicatorsData);
+    } else if (indicatorsData) {
+        // LEGACY: Używamy legacy indicatorsData
+        activeIndicatorsData = indicatorsData;
+        isUsingUltraBrain = false;
+        salesIndicatorsSource = "Legacy AI";
+        console.log('🧠 [SALES INDICATORS DASHBOARD] Używam legacy wskaźników:', activeIndicatorsData);
+    } else {
+        activeIndicatorsData = null;
+        isUsingUltraBrain = false;
+        salesIndicatorsSource = "Brak danych";
+        console.log('❌ [SALES INDICATORS DASHBOARD] Brak danych wskaźników');
+    }
     // Loading state
     if (loading) {
         return (
@@ -81,7 +108,7 @@ const SalesIndicatorsDashboard = ({
     }
 
     // No data state
-    if (!indicatorsData) {
+    if (!activeIndicatorsData) {
         return (
             <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -105,13 +132,13 @@ const SalesIndicatorsDashboard = ({
         );
     }
 
-    // Extract data for each indicator
+    // Extract data for each indicator (z Ultra Mózgu lub legacy)
     const {
         purchase_temperature,
         customer_journey_stage, 
         churn_risk,
         sales_potential
-    } = indicatorsData;
+    } = activeIndicatorsData;
 
     // Calculate overall score
     const calculateOverallScore = () => {
@@ -196,15 +223,17 @@ const SalesIndicatorsDashboard = ({
                 </Grid>
             </Grid>
 
-            {/* Zintegrowana informacja o źródle danych */}
-            <Alert severity="info" sx={{ mt: 2 }}>
+            {/* 🧠⚡ PRIORYTET 3: Enhanced informacja o źródle danych */}
+            <Alert severity={isUsingUltraBrain ? "success" : "info"} sx={{ mt: 2 }}>
                 <Typography variant="body2">
                     <TrendingUpIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'text-bottom' }} />
-                    <strong>🧠 Unified AI Psychology Engine:</strong> 
-                    {customerArchetype ? (
-                        <>Wskaźniki generowane dla archetypu <strong>{customerArchetype.archetype_name}</strong> ({psychologyConfidence}% pewności) na podstawie profilu Big Five + DISC + Wartości Schwartza.</>
+                    <strong>{isUsingUltraBrain ? '🧠⚡ Ultra Mózg DNA Engine:' : '🧠 Legacy Psychology Engine:'}</strong> 
+                    {isUsingUltraBrain ? (
+                        <>Wskaźniki wygenerowane na podstawie DNA Klienta (holistic profile) przez Ultra Mózg. Źródło: {salesIndicatorsSource} - {isDnaReady ? 'DNA Ready' : 'Fallback Mode'}</>
+                    ) : customerArchetype ? (
+                        <>Wskaźniki generowane dla archetypu <strong>{customerArchetype.archetype_name}</strong> ({psychologyConfidence}% pewności) na podstawie profilu Big Five + DISC + Wartości Schwartza. Źródło: {salesIndicatorsSource}</>
                     ) : (
-                        <>Analiza psychometryczna w toku - wskaźniki będą dostępne po identyfikacji archetypu klienta.</>
+                        <>Analiza psychometryczna w toku - wskaźniki będą dostępne po identyfikacji archetypu klienta. Źródło: {salesIndicatorsSource}</>
                     )}
                 </Typography>
             </Alert>

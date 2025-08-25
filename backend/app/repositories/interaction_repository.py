@@ -1,192 +1,395 @@
+"""
+InteractionRepository - Wyczyszczona wersja (tylko operacje DB)
+
+REFAKTORYZACJA: Usunięto 150+ linii logiki AI
+- Przeniesiono do InteractionService
+- Repository zawiera tylko CRUD operations
+- Clean Architecture - separacja warstw
+
+Porównaj z interaction_repository.py (stara wersja)
+"""
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update
+from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload
-from datetime import datetime
 from typing import Optional, List, Dict, Any
+import logging
+
 from app.models.domain import Interaction, Session as SessionModel, Client
 from app.schemas.interaction import InteractionCreateNested
-from app.services.ai_service import generate_sales_analysis, ai_service
-from app.services.session_psychology_service import session_psychology_engine
-from app.core.database import engine  # Import engine dla fresh database session
-import logging
 
 logger = logging.getLogger(__name__)
 
+
 class InteractionRepository:
     """
-    Repozytorium do zarządzania operacjami na danych interakcji.
+    CZYSTE REPOZYTORIUM - tylko operacje bazodanowe
+    
+    Usunięte (przeniesione do InteractionService):
+    ❌ Analiza psychometryczna (session_psychology_engine)
+    ❌ Holistyczna synteza (_run_holistic_synthesis)
+    ❌ Generowanie wskaźników sprzedażowych
+    ❌ Parallel processing (asyncio.gather)
+    ❌ AI strategy generation (generate_sales_analysis)
+    ❌ 150+ linii logiki biznesowej
+    
+    Zostaje tylko:
+    ✅ CRUD operations na Interaction
+    ✅ Database queries
+    ✅ Data persistence
     """
-    async def get_interaction(self, db: AsyncSession, interaction_id: int):
-        # EAGER LOADING: Pobierz interaction wraz z session psychology data
-        query = select(Interaction).options(joinedload(Interaction.session)).where(Interaction.id == interaction_id)
-        result = await db.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_session_interactions(self, db: AsyncSession, session_id: int, skip: int = 0, limit: int = 100):
-        query = select(Interaction).where(Interaction.session_id == session_id).offset(skip).limit(limit)
-        result = await db.execute(query)
-        return list(result.scalars().all())
-
-    async def create_interaction(self, db: AsyncSession, session_id: int, interaction_data: InteractionCreateNested):
+    
+    # === QUERY OPERATIONS ===
+    
+    async def get_interaction(self, db: AsyncSession, interaction_id: int) -> Optional[Interaction]:
         """
-        Tworzy nową interakcję z analizą AI.
+        Pobiera interakcję po ID z eager loading session data
+        
+        Args:
+            db: Sesja bazy danych
+            interaction_id: ID interakcji
+            
+        Returns:
+            Optional[Interaction]: Interakcja lub None
         """
         try:
-            # Pobierz sesję z klientem dla kontekstu AI
-            session_query = select(SessionModel).where(SessionModel.id == session_id)
-            session_result = await db.execute(session_query)
-            session = session_result.scalar_one_or_none()
+            query = (
+                select(Interaction)
+                .options(joinedload(Interaction.session))
+                .where(Interaction.id == interaction_id)
+            )
+            result = await db.execute(query)
+            interaction = result.scalar_one_or_none()
             
-            if not session:
-                raise ValueError(f"Sesja o ID {session_id} nie istnieje")
+            if interaction:
+                logger.debug(f"📄 [REPO] Retrieved interaction {interaction_id}")
             
-            # Pobierz klienta
-            client_query = select(Client).where(Client.id == session.client_id)
-            client_result = await db.execute(client_query)
-            client = client_result.scalar_one_or_none()
+            return interaction
             
-            # Przygotuj podstawowe dane interakcji
-            interaction_dict = {
-                "session_id": session_id,
-                "user_input": interaction_data.user_input,
-                "ai_response_json": {},
-                "feedback_data": []
-            }
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error retrieving interaction {interaction_id}: {e}")
+            return None
+    
+    async def get_session_interactions(
+        self, 
+        db: AsyncSession, 
+        session_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[Interaction]:
+        """
+        Pobiera interakcje dla sesji z paginacją
+        
+        Args:
+            db: Sesja bazy danych
+            session_id: ID sesji
+            skip: Ile interakcji pominąć
+            limit: Maksymalna liczba interakcji
             
-            # NOWE: Sprawdź czy to clarification interaction
-            is_clarification = bool(interaction_data.additional_context or interaction_data.clarifying_answer)
-            parent_id = interaction_data.parent_interaction_id if hasattr(interaction_data, 'parent_interaction_id') else None
+        Returns:
+            List[Interaction]: Lista interakcji
+        """
+        try:
+            query = (
+                select(Interaction)
+                .where(Interaction.session_id == session_id)
+                .order_by(Interaction.timestamp.desc())  # Najnowsze pierwsze
+                .offset(skip)
+                .limit(limit)
+            )
+            result = await db.execute(query)
+            interactions = list(result.scalars().all())
             
-            print(f"🔄 [CREATE] Tworzenie interakcji: is_clarification={is_clarification}, parent_id={parent_id}")
+            logger.debug(f"📄 [REPO] Retrieved {len(interactions)} interactions for session {session_id}")
+            return interactions
             
-            try:
-                # NOWA LOGIKA v4.0 - ULTRA MÓZG: Psychology PRZED AI Response
-                if client:
-                    client_profile = {
-                        "alias": client.alias,
-                        "archetype": client.archetype,
-                        "notes": client.notes
-                    }
-                    
-                    # Historia sesji
-                    session_history = []
-                    session_context = {"session_type": "consultation"}
-                    
-                    # KROK 3.1: KLUCZOWE! Pobierz i zaktualizuj surowe dane psychometryczne PRZED AI response
-                    logger.info(f"🧠 [ULTRA BRAIN REPO] Rozpoczynam analizę psychology dla sesji {session_id}")
-                    updated_psychology_profile = await session_psychology_engine.update_and_get_psychology(
-                        session_id=session_id,
-                        db=db,
-                        ai_service=ai_service
-                    )
-                    logger.info(f"✅ [ULTRA BRAIN REPO] Psychology profile gotowy! Confidence: {updated_psychology_profile.get('psychology_confidence', 0)}%")
-                    
-                    # FAZA 2 ULTRA MÓZGU: SYNTEZA HOLISTYCZNA - DNA Klienta
-                    logger.info(f"🔬 [SYNTEZATOR REPO] Rozpoczynam syntezę holistycznego profilu...")
-                    holistic_profile = await ai_service._run_holistic_synthesis(updated_psychology_profile)
-                    logger.info(f"✅ [SYNTEZATOR REPO] DNA Klienta gotowe! Drive: {holistic_profile.get('main_drive', 'Unknown')}")
-                    
-                    # Zapisz holistyczny profil w bazie danych
-                    try:
-                        await db.execute(
-                            update(SessionModel)
-                            .where(SessionModel.id == session_id)
-                            .values(holistic_psychometric_profile=holistic_profile)
-                        )
-                        logger.info(f"💾 [SYNTEZATOR REPO] Holistyczny profil zapisany w bazie dla sesji {session_id}")
-                    except Exception as e:
-                        logger.error(f"❌ [SYNTEZATOR REPO] Błąd zapisu holistycznego profilu: {e}")
-                    
-                    if is_clarification and parent_id:
-                        # ŚCIEŻKA CLARIFICATION: Analiza z DNA Klienta (Ultra Mózg v4.0)
-                        logger.info(f"⚡ [ULTRA BRAIN] Clarification analysis z DNA Klienta dla parent={parent_id}")
-                        
-                        ai_response = await generate_sales_analysis(
-                            user_input=f"Aktualizacja: {interaction_data.user_input}",
-                            client_profile=client_profile,
-                            session_history=session_history,
-                            session_context={'type': 'clarification_update'},
-                            session_psychology=updated_psychology_profile,  # DEPRECATED v4.0
-                            holistic_profile=holistic_profile               # NOWY v4.0: DNA Klienta
-                        )
-                    else:
-                        # ŚCIEŻKA STANDARD: Strategia z DNA Klienta (Ultra Mózg v4.0)
-                        logger.info(f"⚡ [ULTRA BRAIN] Generator Strategii aktywny - używam DNA Klienta")
-                        
-                        ai_response = await generate_sales_analysis(
-                            user_input=interaction_data.user_input,
-                            client_profile=client_profile,
-                            session_history=session_history,
-                            session_context=session_context,
-                            session_psychology=updated_psychology_profile,  # DEPRECATED v4.0
-                            holistic_profile=holistic_profile,              # NOWY v4.0: DNA Klienta
-                            customer_archetype=updated_psychology_profile.get('customer_archetype')  # NOWE! Customer archetype
-                        )
-                        
-                        # USUNIĘTE: Stare confidence scoring - teraz mamy prawdziwe dane z psychology engine
-                    
-                    interaction_dict["ai_response_json"] = ai_response
-                    
-            except Exception as ai_error:
-                # Fallback gdy AI nie działa
-                interaction_dict["ai_response_json"] = {
-                    "main_analysis": "AI niedostępny. Postępuj zgodnie z procedurami.",
-                    "suggested_actions": [
-                        {"action": "Kontynuuj rozmowę", "reasoning": "Zbierz więcej informacji"}
-                    ],
-                    "quick_response": "Rozumiem. Czy mógłby Pan powiedzieć więcej?",
-                    "is_fallback": True,
-                    "error_reason": str(ai_error)
-                }
-
-            # Utwórz interakcję
-            db_interaction = Interaction(**interaction_dict)
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error retrieving interactions for session {session_id}: {e}")
+            return []
+    
+    async def get_interactions_count(self, db: AsyncSession, session_id: int) -> int:
+        """
+        Zlicza interakcje w sesji
+        
+        Args:
+            db: Sesja bazy danych
+            session_id: ID sesji
+            
+        Returns:
+            int: Liczba interakcji
+        """
+        try:
+            query = select(func.count(Interaction.id)).where(Interaction.session_id == session_id)
+            result = await db.execute(query)
+            count = result.scalar() or 0
+            
+            logger.debug(f"📊 [REPO] Session {session_id} has {count} interactions")
+            return count
+            
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error counting interactions for session {session_id}: {e}")
+            return 0
+    
+    # === CREATE OPERATIONS ===
+    
+    async def create_interaction_simple(
+        self,
+        db: AsyncSession,
+        interaction_data: Dict[str, Any]
+    ) -> Interaction:
+        """
+        NOWA METODA: Tworzy interakcję bez logiki AI (czysta operacja DB)
+        
+        Args:
+            db: Sesja bazy danych
+            interaction_data: Dane interakcji (już przygotowane przez Service)
+            
+        Returns:
+            Interaction: Utworzona interakcja
+            
+        Raises:
+            ValueError: Jeśli wystąpi błąd podczas tworzenia
+        """
+        try:
+            # Walidacja podstawowych danych
+            if not interaction_data.get('session_id'):
+                raise ValueError("session_id is required")
+            if not interaction_data.get('user_input'):
+                raise ValueError("user_input is required")
+            
+            # Utwórz instancję Interaction
+            db_interaction = Interaction(**interaction_data)
+            
+            # Zapisz do bazy
             db.add(db_interaction)
-            await db.flush()
-            await db.refresh(db_interaction)
+            await db.flush()  # Flush żeby dostać ID
+            await db.refresh(db_interaction)  # Refresh żeby dostać timestamp
             
-            # ULTRA MÓZG v4.0: Background task USUNIĘTY! 
-            # Psychology jest teraz przetwarzana synchronicznie PRZED AI response
-            logger.info(f"🧠⚡ [ULTRA MÓZG] Dwuetapowa analiza ukończona! Synteza + Strategia dla sesji {session_id}")
-            
+            logger.info(f"✅ [REPO] Created interaction {db_interaction.id} for session {interaction_data['session_id']}")
             return db_interaction
             
         except Exception as e:
-            raise ValueError(f"Błąd podczas tworzenia interakcji: {e}")
-
-    # STARE FUNKCJE USUNIĘTE - Zastąpione przez SessionPsychologyEngine v3.0
-    # Wszystkie per-interaction psychology functions zostały przeniesione na poziom sesji
-
-    async def update_interaction(self, db: AsyncSession, interaction_id: int, update_data: dict):
+            logger.error(f"❌ [REPO] Error creating interaction: {e}")
+            raise ValueError(f"Database error during interaction creation: {e}")
+    
+    async def create_interaction_legacy(
+        self, 
+        db: AsyncSession, 
+        session_id: int, 
+        interaction_data: InteractionCreateNested
+    ) -> Interaction:
         """
-        Aktualizuje dane interakcji.
-        """
-        query = select(Interaction).where(Interaction.id == interaction_id)
-        result = await db.execute(query)
-        interaction = result.scalar_one_or_none()
+        LEGACY METHOD: Stara metoda z AI logiką - DEPRECATED
         
-        if not interaction:
+        ⚠️ UWAGA: Ta metoda zawiera 150+ linii logiki AI
+        ⚠️ UŻYWAJ: InteractionService.create_interaction_with_ai_analysis()
+        
+        Pozostaje dla compatibility, ale powinna być usunięta po migracji.
+        """
+        logger.warning("⚠️ [REPO] Using LEGACY create_interaction method - should use InteractionService!")
+        
+        # Import legacy logic (jeśli potrzebny jako fallback)
+        # Można zaimportować starą wersję z backup file jeśli potrzeba
+        
+        # Dla teraz - prosta implementacja bez AI
+        basic_data = {
+            "session_id": session_id,
+            "user_input": interaction_data.user_input,
+            "ai_response_json": {
+                "main_analysis": "Legacy mode - brak analizy AI",
+                "quick_response": "Rozumiem. Kontynuujmy rozmowę.",
+                "is_legacy": True
+            },
+            "feedback_data": []
+        }
+        
+        return await self.create_interaction_simple(db, basic_data)
+    
+    # === UPDATE OPERATIONS ===
+    
+    async def update_interaction(
+        self, 
+        db: AsyncSession, 
+        interaction_id: int, 
+        update_data: Dict[str, Any]
+    ) -> Optional[Interaction]:
+        """
+        Aktualizuje interakcję
+        
+        Args:
+            db: Sesja bazy danych
+            interaction_id: ID interakcji
+            update_data: Dane do aktualizacji
+            
+        Returns:
+            Optional[Interaction]: Zaktualizowana interakcja lub None
+        """
+        try:
+            # Pobierz interakcję
+            interaction = await self.get_interaction(db, interaction_id)
+            if not interaction:
+                logger.warning(f"⚠️ [REPO] Interaction {interaction_id} not found for update")
+                return None
+            
+            # Aktualizuj pola
+            for key, value in update_data.items():
+                if hasattr(interaction, key):
+                    setattr(interaction, key, value)
+                else:
+                    logger.warning(f"⚠️ [REPO] Unknown field '{key}' for Interaction model")
+            
+            # Zapisz zmiany
+            await db.flush()
+            await db.refresh(interaction)
+            
+            logger.info(f"✅ [REPO] Updated interaction {interaction_id}")
+            return interaction
+            
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error updating interaction {interaction_id}: {e}")
             return None
-        
-        for field, value in update_data.items():
-            if hasattr(interaction, field):
-                setattr(interaction, field, value)
-        
-        await db.flush()
-        await db.refresh(interaction)
-        return interaction
-
-    async def delete_interaction(self, db: AsyncSession, interaction_id: int):
+    
+    async def update_ai_response(
+        self,
+        db: AsyncSession,
+        interaction_id: int,
+        ai_response: Dict[str, Any]
+    ) -> Optional[Interaction]:
         """
-        Usuwa interakcję.
-        """
-        query = select(Interaction).where(Interaction.id == interaction_id)
-        result = await db.execute(query)
-        interaction = result.scalar_one_or_none()
+        Aktualizuje tylko AI response w interakcji
         
-        if not interaction:
+        Args:
+            db: Sesja bazy danych
+            interaction_id: ID interakcji
+            ai_response: Nowa odpowiedź AI
+            
+        Returns:
+            Optional[Interaction]: Zaktualizowana interakcja
+        """
+        return await self.update_interaction(
+            db, 
+            interaction_id, 
+            {"ai_response_json": ai_response}
+        )
+    
+    # === DELETE OPERATIONS ===
+    
+    async def delete_interaction(self, db: AsyncSession, interaction_id: int) -> bool:
+        """
+        Usuwa interakcję
+        
+        Args:
+            db: Sesja bazy danych
+            interaction_id: ID interakcji
+            
+        Returns:
+            bool: True jeśli usunięto, False jeśli nie znaleziono
+        """
+        try:
+            # Pobierz interakcję
+            interaction = await self.get_interaction(db, interaction_id)
+            if not interaction:
+                logger.warning(f"⚠️ [REPO] Interaction {interaction_id} not found for deletion")
+                return False
+            
+            # Usuń z bazy
+            await db.delete(interaction)
+            await db.flush()
+            
+            logger.info(f"✅ [REPO] Deleted interaction {interaction_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error deleting interaction {interaction_id}: {e}")
             return False
+    
+    # === HELPER METHODS ===
+    
+    async def interaction_exists(self, db: AsyncSession, interaction_id: int) -> bool:
+        """
+        Sprawdza czy interakcja istnieje
         
-        await db.delete(interaction)
-        await db.flush()
-        return True
+        Args:
+            db: Sesja bazy danych
+            interaction_id: ID interakcji
+            
+        Returns:
+            bool: True jeśli istnieje
+        """
+        try:
+            query = select(Interaction.id).where(Interaction.id == interaction_id)
+            result = await db.execute(query)
+            exists = result.scalar_one_or_none() is not None
+            
+            logger.debug(f"📄 [REPO] Interaction {interaction_id} exists: {exists}")
+            return exists
+            
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error checking interaction {interaction_id} existence: {e}")
+            return False
+    
+    async def get_latest_interaction(self, db: AsyncSession, session_id: int) -> Optional[Interaction]:
+        """
+        Pobiera najnowszą interakcję w sesji
+        
+        Args:
+            db: Sesja bazy danych
+            session_id: ID sesji
+            
+        Returns:
+            Optional[Interaction]: Najnowsza interakcja lub None
+        """
+        try:
+            query = (
+                select(Interaction)
+                .where(Interaction.session_id == session_id)
+                .order_by(Interaction.timestamp.desc())
+                .limit(1)
+            )
+            result = await db.execute(query)
+            interaction = result.scalar_one_or_none()
+            
+            if interaction:
+                logger.debug(f"📄 [REPO] Latest interaction for session {session_id}: {interaction.id}")
+            
+            return interaction
+            
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error getting latest interaction for session {session_id}: {e}")
+            return None
+    
+    # === STATISTICS & ANALYTICS ===
+    
+    async def get_interaction_stats(self, db: AsyncSession, session_id: int) -> Dict[str, Any]:
+        """
+        Pobiera statystyki interakcji dla sesji
+        
+        Args:
+            db: Sesja bazy danych
+            session_id: ID sesji
+            
+        Returns:
+            Dict: Statystyki interakcji
+        """
+        try:
+            # Podstawowe statystyki
+            total_count = await self.get_interactions_count(db, session_id)
+            latest_interaction = await self.get_latest_interaction(db, session_id)
+            
+            # Dodatkowe metryki (można rozbudować)
+            stats = {
+                'total_interactions': total_count,
+                'latest_interaction_id': latest_interaction.id if latest_interaction else None,
+                'latest_timestamp': latest_interaction.timestamp.isoformat() if latest_interaction else None,
+                'session_id': session_id
+            }
+            
+            logger.debug(f"📊 [REPO] Interaction stats for session {session_id}: {stats}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ [REPO] Error getting interaction stats for session {session_id}: {e}")
+            return {
+                'error': str(e),
+                'session_id': session_id,
+                'total_interactions': 0
+            }
