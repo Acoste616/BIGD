@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services.interaction_service import get_interaction_service
 from app.repositories.session_repository import SessionRepository
-from app.services.session_psychology_service import session_psychology_engine
+from app.services.session_orchestrator_service import session_orchestrator_service
 from app.schemas.interaction import Interaction, InteractionCreateNested, ClarifyingQuestion
 import logging
 
@@ -251,7 +251,7 @@ async def answer_session_question(
         
         # TYMCZASOWO: Bezpośrednie wywołanie SessionPsychologyEngine
         # TODO: Przenieść do SessionService jeśli zostanie stworzony
-        updated_profile = await session_psychology_engine.answer_clarifying_question(
+        updated_profile = await session_orchestrator_service.answer_clarifying_question(
             session_id=session_id,
             question_id=question_id, 
             answer=answer,

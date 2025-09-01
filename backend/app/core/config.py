@@ -43,8 +43,11 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gpt-oss:120b")
     OLLAMA_FALLBACK_MODEL: str = os.getenv("OLLAMA_FALLBACK_MODEL", "gpt-oss:20b")
     
-    # CORS
-    CORS_ORIGINS_STR: str = os.getenv("CORS_ORIGINS_STR", "http://localhost:3000,http://localhost:8000")
+    # CORS - Enhanced for development with multiple ports
+    CORS_ORIGINS_STR: str = os.getenv(
+        "CORS_ORIGINS_STR", 
+        "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173,http://localhost:8000"
+    )
     
     @property
     def CORS_ORIGINS(self) -> List[str]:

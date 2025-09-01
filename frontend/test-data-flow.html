@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Data Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Frontend UI Data Flow Test</h1>
+    <p>This test page helps debug the data flow from backend to frontend components.</p>
+
+    <div class="test-section info">
+        <h3>📋 Test Instructions</h3>
+        <ol>
+            <li>Open browser console (F12) to see debug logs</li>
+            <li>Click the button below to open the main application</li>
+            <li>Start a conversation and send a message</li>
+            <li>Watch console logs for Ultra Brain data flow</li>
+            <li>Check if archetype and psychometric data appears correctly</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>🚀 Quick Actions</h3>
+        <button onclick="openMainApp()">Open Main Application</button>
+        <button onclick="openConversationView()">Open Conversation View</button>
+        <button onclick="showTestData()">Show Expected Data Structure</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🔍 Expected Console Logs to Look For:</h3>
+        <pre>
+🔧 [ULTRA BRAIN DEBUG] Final Ultra Brain State: {
+  dnaReady: true/false,
+  strategiaReady: true/false,
+  dnaKlienta: { holistic_summary: "Customer DNA", ... },
+  customerArchetype: { archetype_name: "🏆 Zdobywca Statusu", ... },
+  psychologyConfidence: 85,
+  rawPsychology: ["big_five", "disc", ...],
+  analyticsData: "Available"
+}
+
+🔧 [CONVERSATION VIEW] Passing data to StrategicPanel: {
+  dnaKlienta: {...},
+  getArchetypeName: "🏆 Zdobywca Statusu",
+  isDnaReady: true,
+  isStrategiaReady: true,
+  ultraBrainConfidence: 85,
+  customerArchetype: {...}
+}
+
+🔧 [STRATEGIC PANEL DEBUG] Data flow analysis: {
+  isDnaReady: true,
+  isStrategiaReady: true,
+  dnaKlienta: {...},
+  getArchetypeName: "🏆 Zdobywca Statusu",
+  activeConfidence: 85
+}
+        </pre>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 What We're Testing:</h3>
+        <ul>
+            <li><strong>Backend Response:</strong> Psychology analysis results from SessionOrchestratorService</li>
+            <li><strong>useUltraBrain Hook:</strong> Data processing and state management</li>
+            <li><strong>ConversationView:</strong> Props passing to StrategicPanel</li>
+            <li><strong>StrategicPanel:</strong> Archetype display and DNA rendering</li>
+        </ul>
+    </div>
+
+    <div id="test-results" class="test-section" style="display: none;">
+        <h3>📊 Test Results</h3>
+        <div id="results-content"></div>
+    </div>
+
+    <script>
+        function openMainApp() {
+            window.open('/', '_blank');
+        }
+
+        function openConversationView() {
+            window.open('/conversation', '_blank');
+        }
+
+        function showTestData() {
+            const expectedData = {
+                dnaKlienta: {
+                    holistic_summary: "🏆 Zdobywca Statusu",
+                    main_drive: "Prestiż i status społeczny",
+                    communication_style: {
+                        recommended_tone: "Profesjonalny i aspiracyjny",
+                        keywords_to_use: ["prestiż", "ekskluzywny", "lider"],
+                        keywords_to_avoid: ["tani", "podstawowy", "przeciętny"]
+                    },
+                    key_levers: ["Status i prestiż", "Innowacja", "Jakość premium"],
+                    red_flags: ["Podkreślanie niskich cen", "Porównania z tańszymi opcjami"]
+                },
+                customerArchetype: {
+                    archetype_name: "🏆 Zdobywca Statusu",
+                    archetype_key: "zdobywca_statusu",
+                    confidence: 85
+                },
+                surowePsychology: {
+                    big_five: {
+                        openness: { score: 8, rationale: "Otwartość na innowacje" },
+                        conscientiousness: { score: 7, rationale: "Systematyczność" },
+                        extraversion: { score: 8, rationale: "Społeczność" },
+                        agreeableness: { score: 6, rationale: "Asertywność" },
+                        neuroticism: { score: 3, rationale: "Stabilność emocjonalna" }
+                    }
+                }
+            };
+            
+            document.getElementById('test-results').style.display = 'block';
+            document.getElementById('results-content').innerHTML = 
+                '<h4>Expected Data Structure:</h4><pre>' + 
+                JSON.stringify(expectedData, null, 2) + 
+                '</pre>';
+        }
+
+        // Auto-open console instructions
+        console.log('🔧 [TEST PAGE] Frontend Data Flow Test Ready!');
+        console.log('🔧 [TEST PAGE] Watch for these ENHANCED debug logs when using the app:');
+        console.log('   - 🔧 [ULTRA BRAIN DEBUG] Final Ultra Brain State');
+        console.log('   - 🔧 [CONVERSATION VIEW] Passing data to StrategicPanel');
+        console.log('   - 🔧 [STRATEGIC PANEL DEBUG] Complete data flow analysis');
+        console.log('   - 🔧 [STRATEGIC PANEL] Constructing customerArchetype with data');
+        console.log('');
+        console.log('📝 Expected behavior after fixes:');
+        console.log('   1. Real archetype names should display (e.g., "🏆 Zdobywca Statusu")');
+        console.log('   2. "Profil w trakcie analizy..." should disappear when data is ready');
+        console.log('   3. Detailed psychometric data should appear in charts/lists');
+        console.log('   4. Confidence levels should show realistic values (not 0%)');
+        console.log('');
+        console.log('🔍 What to look for in the console logs:');
+        console.log('   - dnaReady: true (indicates DNA data is available)');
+        console.log('   - hasRealData: true (indicates not placeholder data)');
+        console.log('   - archetype_name with actual names (not "neutral" or "Profil w trakcie analizy...")');
+        console.log('   - functionsAvailable showing all helper functions as true');
+        
+        // Test function to validate data structure
+        window.validateUltraBrainData = function(data) {
+            console.log('🔍 [DATA VALIDATOR] Checking Ultra Brain data structure...');
+            
+            const checks = {
+                hasDnaKlienta: !!(data?.dnaKlienta),
+                hasHolisticSummary: !!(data?.dnaKlienta?.holistic_summary),
+                hasMainDrive: !!(data?.dnaKlienta?.main_drive),
+                archetypeNotPlaceholder: (
+                    data?.dnaKlienta?.holistic_summary && 
+                    data.dnaKlienta.holistic_summary !== 'Profil w trakcie analizy...' &&
+                    data.dnaKlienta.holistic_summary !== 'neutral'
+                ),
+                hasConfidence: !!(data?.confidence && data.confidence > 0),
+                hasKeyLevers: !!(data?.dnaKlienta?.key_levers?.length),
+                hasCommunicationStyle: !!(data?.dnaKlienta?.communication_style)
+            };
+            
+            console.log('📊 [DATA VALIDATOR] Validation results:', checks);
+            
+            const passedChecks = Object.values(checks).filter(Boolean).length;
+            const totalChecks = Object.keys(checks).length;
+            const score = Math.round((passedChecks / totalChecks) * 100);
+            
+            console.log(`🏆 [DATA VALIDATOR] Data quality score: ${score}% (${passedChecks}/${totalChecks} checks passed)`);
+            
+            if (score >= 80) {
+                console.log('✅ [DATA VALIDATOR] Excellent! Data structure looks good.');
+            } else if (score >= 60) {
+                console.log('⚠️ [DATA VALIDATOR] Warning: Some data may be missing or placeholder.');
+            } else {
+                console.log('❌ [DATA VALIDATOR] Issue: Data appears to be mostly placeholders.');
+            }
+            
+            return { score, checks, data };
+        };
+    </script>
+</body>
+</html>

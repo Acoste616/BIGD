@@ -1,0 +1,39 @@
+# Docker Compose Override for Development
+# This file automatically extends docker-compose.yml for development mode
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # For Windows file watching
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s  # Longer start period for development
+
+  backend:
+    environment:
+      - DEBUG=true
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+      - backend_venv:/app/.venv
+    restart: unless-stopped
+
+# Development volumes for better performance
+volumes:
+  frontend_node_modules:
+    driver: local
+  backend_venv:
+    driver: local

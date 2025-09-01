@@ -20,7 +20,7 @@ from datetime import datetime
 from app.models.domain import Session as SessionModel, Client
 from app.schemas.interaction import InteractionCreateNested
 from app.repositories.interaction_repository import InteractionRepository
-from app.services.session_psychology_service import session_psychology_engine
+from app.services.session_orchestrator_service import session_orchestrator_service
 
 # Import nowych wyspecjalizowanych serwisów AI
 from app.services.ai import (
@@ -30,8 +30,8 @@ from app.services.ai import (
     check_ai_services_health
 )
 
-# Fallback - import starego ai_service jeśli potrzebny
-from app.services.ai_service import generate_sales_analysis, ai_service
+# Import unified AI service (replaces fragmented services)
+from app.services.ai_service import generate_sales_analysis, ai_service_unified as ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class InteractionService:
             
             # === KROK 1: PSYCHOLOGY ANALYSIS ===
             logger.info(f"🧠 [STEP 1] Psychology Analysis dla sesji {session_id}")
-            updated_psychology_profile = await session_psychology_engine.update_and_get_psychology(
+            updated_psychology_profile = await session_orchestrator_service.orchestrate_psychology_analysis(
                 session_id=session_id,
                 db=db,
                 ai_service=ai_service  # Używamy starego ai_service jako fallback

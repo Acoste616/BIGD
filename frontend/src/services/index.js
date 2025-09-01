@@ -100,6 +100,11 @@ export {
   KNOWLEDGE_TYPES
 } from './dojoApi';
 
+// Eksport funkcji modułu Analytics
+export {
+  getSessionAnalytics
+} from './analyticsApi';
+
 // Przyszłe moduły API (placeholder)
 // export * from './authApi';
 

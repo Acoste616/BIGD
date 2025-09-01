@@ -81,6 +81,31 @@ class SalesStrategyService(BaseAIService):
     def __init__(self, qdrant_service=None):
         super().__init__()
         self.qdrant_service = qdrant_service
+        
+        # 🚀 ULTRA MÓZG v4.1 - ULEPSZONY PROMPT SYSTEMOWY
+        self.system_prompt = """
+🧠⚡ ULTRA MÓZG v4.1 - Główny Architekt Strategii Sprzedaży Tesla
+
+Jesteś światowej klasy strategiem sprzedaży i psychologiem biznesu z 15-letnim doświadczeniem, specjalizującym się w pojazdach premium. Twoim zadaniem jest dostarczanie precyzyjnych, opartych na danych i psychologii rekomendacji dla sprzedawcy.
+
+🎯 NADRZĘDNE PRAWO STRATEGICZNE:
+TWOIM GŁÓWNYM I JEDYNYM ŹRÓDŁEM PRAWIDŁOWEJ STRATEGII JEST DOSTARCZONY 'customer_archetype' z ULTRA MÓZGU v4.1!
+Surowe dane psychologiczne (Big Five, DISC) służą WYŁĄCZNIE do doprecyzowania tonu i języka komunikacji, ale to ARCHETYP TESLI dyktuje strategię!
+
+KLUCZOWE ZASADY TWOJEGO DZIAŁANIA:
+1.  **ARCHETYP JEST KRÓLEM:** Każda strategia MUSI być zgodna z predefiniowaną strategią sprzedaży archetypu. Jeśli archetyp mówi "nie używaj emocjonalnych argumentów" - nie używaj ich!
+2.  **HIPERKONTEKSTUALIZACJA:** Każda sugestia musi być powiązana z wypowiedzią klienta, ale PRZEFILTROWANA przez pryzmat archetypu.
+3.  **LOGICZNE UZASADNIENIE:** Zawsze wyjaśniaj dlaczego dana strategia jest optymalna, ODWOŁUJĄC SIĘ DO ARCHETYPU ("Dla Strażnika Rodziny bezpieczeństwo jest kluczowe...").
+4.  **DYNAMIKA I EWOLUCJA:** Zmiany strategii tylko jeśli ewidentnie niezgodne z archetypem.
+5.  **PRAKTYCZNOŚĆ:** Sugestie muszą być gotowe do użycia i zgodne ze stylem komunikacji archetypu.
+
+FORMAT ODPOWIEDZI (zawsze zwracaj JSON):
+- "response": Główna, zwięzła myśl strategiczna.
+- "suggested_actions": Lista 3-4 konkretnych, następnych ruchów (pytań, propozycji).
+- "reasoning": Twoje uzasadnienie wyboru tej strategii.
+- "evolution_note": Notatka o ewolucji strategii (np. "Zmiana fokusu z ceny na bezpieczeństwo po komentarzu o dzieciach.").
+"""
+        
         logger.info("✅ SalesStrategyService initialized")
     
     async def generate_sales_strategy(
@@ -299,7 +324,9 @@ Odpowiedz profesjonalnie i zachęcająco, podkreślając korzyści Tesla.
             'conversation_history': conversation_summary,
             'psychology_summary': self._summarize_psychology(psychology_profile) if psychology_profile else None,
             'dna_summary': self._summarize_holistic_profile(holistic_profile) if holistic_profile else None,
-            'archetype_info': customer_archetype.get('archetype_name') if customer_archetype else None
+            'archetype_info': customer_archetype.get('archetype_name') if customer_archetype else None,
+            # 🚀 ULTRA MÓZG: Dodajemy pełny obiekt archetypu Tesli do kontekstu
+            'customer_archetype': customer_archetype
         }
     
     def _build_enhanced_system_prompt(self, knowledge_context: str, holistic_profile: Optional[Dict[str, Any]]) -> str:
@@ -331,37 +358,60 @@ CZERWONE FLAGI: {', '.join(holistic_profile.get('red_flags', []))}
         return enhanced_prompt
     
     def _build_strategy_user_prompt(self, context: Dict[str, Any]) -> str:
-        """Buduje user prompt dla strategii"""
-        
+        """🧠⚡ ULTRA MÓZG v4.1 - Buduje user prompt z archetypem Tesli jako priorytetem"""
+
         prompt_parts = [
-            f"AKTUALNA SYTUACJA: Klient ({context.get('client_alias', 'Nieznany')}) właśnie powiedział:",
+            f"🎯 AKTUALNA SYTUACJA: Klient ({context.get('client_alias', 'Nieznany')}) właśnie powiedział:",
             f'"{context.get("current_input", "")}"',
             ""
         ]
-        
+
+        # 🚀 ULTRA MÓZG: Najpierw archetyp Tesli - to jest dyrektywa strategiczna!
+        if context.get('customer_archetype') and context['customer_archetype']:
+            archetype = context['customer_archetype']
+            prompt_parts.extend([
+                "🚀 ULTRA MÓZG v4.1 - STRATEGICZNY ARCHETYP KLIENTA TESLI (GŁÓWNE ŹRÓDŁO STRATEGII):",
+                f"🏷️ NAZWA ARCHETYPU: {archetype.get('archetype_name', 'Nieznany')}",
+                f"📋 OPIS: {archetype.get('description', 'Brak opisu')}",
+                f"🎯 MOTYWACJA: {archetype.get('motivation', 'Nieznana')}",
+                f"💬 STYL KOMUNIKACJI: {archetype.get('communication_style', 'Standardowy')}",
+                "",
+                "⚡ STRATEGIA SPRZEDAŻOWA ARCHETYPU (MUSISZ SIĘ TEGO TRZYMAĆ!):",
+                f"✅ CO ROBIĆ: {', '.join(archetype.get('sales_strategy', {}).get('do', []))}",
+                f"❌ CZEGO UNIKAĆ: {', '.join(archetype.get('sales_strategy', {}).get('dont', []))}",
+                f"🔑 DOMINUJĄCE CECHY: {', '.join(archetype.get('dominant_traits', []))}",
+                "",
+                "⚠️ PAMIĘTAJ: Archetyp Tesli jest Twoją dyrektywą strategiczną! Surowe dane psychologiczne służą tylko do doprecyzowania języka."
+            ])
+
         if context.get('conversation_history'):
             prompt_parts.extend([
-                "HISTORIA ROZMOWY:",
+                "",
+                "📜 HISTORIA ROZMOWY:",
                 "\n".join(context['conversation_history']),
                 ""
             ])
-        
+
         if context.get('psychology_summary'):
             prompt_parts.extend([
-                "PROFIL PSYCHOLOGICZNY:",
+                "🧠 SUROWE DANE PSYCHOLOGICZNE (tylko do doprecyzowania języka):",
                 context['psychology_summary'],
                 ""
             ])
-        
+
         if context.get('dna_summary'):
             prompt_parts.extend([
-                "DNA KLIENTA:",
+                "🧬 DNA KLIENTA:",
                 context['dna_summary'],
                 ""
             ])
-        
-        prompt_parts.append("Wygeneruj kompletną strategię sprzedażową w formacie JSON.")
-        
+
+        prompt_parts.extend([
+            "",
+            "🎯 ZADANIE: Wygeneruj strategię sprzedażową IDEALNIE DOPASOWANĄ do archetypu Tesli!",
+            "Pamiętaj: Archetyp dyktuje strategię, dane psychologiczne tylko styl komunikacji."
+        ])
+
         return "\n".join(prompt_parts)
     
     def _build_archetype_system_prompt(self, customer_archetype: Dict[str, Any]) -> str:

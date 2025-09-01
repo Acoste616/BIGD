@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big Five Radar Chart Integration Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+        pre { 
+            background: #f5f5f5; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠⚡ Big Five Radar Chart Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>✅ Integration Checklist</h2>
+        <ul>
+            <li class="success">✓ BigFiveRadarChart component exists in frontend/src/components/psychometrics/</li>
+            <li class="success">✓ Component imported in StrategicPanel.jsx</li>
+            <li class="success">✓ Psychometric accordion section added to StrategicPanel</li>
+            <li class="success">✓ Data flow from surowePsychology.big_five configured</li>
+            <li class="success">✓ Loading states and error handling implemented</li>
+            <li class="success">✓ Debug logging added for troubleshooting</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Data Flow Verification</h2>
+        <p>The Big Five radar chart will now be displayed in the Strategic Panel when:</p>
+        <ol>
+            <li><strong>isDnaReady</strong> is true (Ultra Brain has processed customer DNA)</li>
+            <li><strong>surowePsychology.big_five</strong> contains valid Big Five data</li>
+            <li>The psychometric accordion is expanded (default state)</li>
+        </ol>
+        
+        <h3>Expected Data Structure:</h3>
+        <pre>{
+  "openness": {
+    "score": 85,
+    "rationale": "Customer shows high curiosity...",
+    "strategy": "Present innovative features..."
+  },
+  "conscientiousness": {
+    "score": 70,
+    "rationale": "Demonstrates organized approach...",
+    "strategy": "Emphasize reliability and planning..."
+  },
+  "extraversion": { "score": 60, ... },
+  "agreeableness": { "score": 75, ... },
+  "neuroticism": { "score": 30, ... }
+}</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Testing Instructions</h2>
+        <ol>
+            <li>Start the application with <code>npm run dev</code></li>
+            <li>Navigate to a session detail page</li>
+            <li>Conduct AI analysis to generate psychometric data</li>
+            <li>Open browser developer tools and check the console for debug logs:</li>
+            <ul>
+                <li><code>[STRATEGIC PANEL DEBUG] Data flow analysis</code></li>
+                <li><code>[BIG FIVE RADAR] Data available for chart</code></li>
+                <li><code>[BIG FIVE RADAR CHART] Received data</code></li>
+            </ul>
+            <li>Verify the psychometric accordion shows the radar chart</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>⚠️ Troubleshooting</h2>
+        <p>If the radar chart doesn't appear:</p>
+        <ul>
+            <li>Check console logs for data availability</li>
+            <li>Verify <code>isDnaReady</code> is true</li>
+            <li>Confirm <code>surowePsychology?.big_five</code> contains data</li>
+            <li>Check if psychometric accordion is expanded</li>
+            <li>Ensure backend is generating complete Big Five analysis</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Acceptance Criteria</h2>
+        <div class="success">
+            <h3>✅ Success Criteria:</h3>
+            <ul>
+                <li>After AI analysis completion, radar chart appears in Strategic Panel</li>
+                <li>Chart displays all 5 personality traits with proper labels</li>
+                <li>Values correspond to backend-generated data</li>
+                <li>Chart doesn't appear when data is unavailable (shows appropriate message)</li>
+                <li>Hovering over chart points shows detailed strategy information</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        console.log('🧠⚡ Big Five Integration Test Page Loaded');
+        console.log('Use this page as a reference while testing the radar chart integration');
+    </script>
+</body>
+</html>

@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   # Backend FastAPI
   backend:
     build: ./backend
-    container_name: sales-copilot-backend
+    container_name: sales-copilot-backend-v4.2.1
     ports:
       - "8000:8000"
     env_file:
@@ -17,6 +15,9 @@ services:
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
       - SECRET_KEY=${SECRET_KEY}
+      - APP_VERSION=v4.2.1
+      - BACKEND_ARCHITECTURE=modular_session_orchestrator
+      - FRONTEND_UI_FIXES=enabled
     volumes:
       - ./backend:/app
     depends_on:
@@ -24,16 +25,23 @@ services:
       - qdrant
     networks:
       - sales-copilot-network
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s 
 
   # PostgreSQL Database
   db:
-    image: postgres:15-alpine
-    container_name: sales-copilot-db
+    image: postgres:16
+    container_name: sales-copilot-db-v4.2.1
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=sales_copilot
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d
@@ -50,7 +58,7 @@ services:
   # Qdrant Vector Database
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: sales-copilot-qdrant
+    container_name: sales-copilot-qdrant-v4.2.1
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -60,23 +68,40 @@ services:
       - sales-copilot-network
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Frontend React (dla development)
   frontend:
-    build: ./frontend
-    container_name: sales-copilot-frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sales-copilot-frontend-v4.2.1
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8000
-      - REACT_APP_WS_URL=ws://localhost:8000/ws
+      - REACT_APP_BACKEND_URL=http://backend:8000
+      - REACT_APP_WS_URL=ws://backend:8000/ws
+      - NODE_ENV=development
+      - DOCKER_ENV=true
+      - REACT_APP_VERSION=v4.2.1
+      - REACT_APP_FRONTEND_ARCHITECTURE=ultra_brain_v4.2.1
+      - REACT_APP_ENABLE_ULTRA_BRAIN=true
+      - REACT_APP_ENABLE_UI_FIXES=true
+      - REACT_APP_DEBUG_DATA_FLOW=true
     networks:
       - sales-copilot-network
-    stdin_open: true
-    tty: true
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   postgres_data:

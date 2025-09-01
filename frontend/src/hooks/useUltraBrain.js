@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getInteractionById } from '../services';
+import { useSessionAnalytics } from './useSessionAnalytics';
 
 /**
  * 🧠⚡ ULTRA MÓZG v4.0 - CENTRALNE ŹRÓDŁO PRAWDY
@@ -11,14 +12,20 @@ import { getInteractionById } from '../services';
  * Filozofia: Jeden hook, jedna prawda, wszystkie komponenty synchroniczne
  */
 export const useUltraBrain = (interactionId, options = {}) => {
-    const { 
-        autoFetch = true, 
+    const {
+        autoFetch = true,
         onError = null,
         enablePolling = true,
         pollingInterval = 3000,  // Szybsze polling dla Ultra Mózgu
         debug = false
     } = options;
-    
+
+    // 🧠⚡ INTEGRACJA: Dodajemy useSessionAnalytics dla danych psychometrycznych
+    const [sessionId, setSessionId] = useState(null);
+
+    // 🧠⚡ INTEGRACJA: Hook do pobierania danych psychometrycznych z analytics
+    const { data: analyticsData, loading: analyticsLoading, error: analyticsError } = useSessionAnalytics(sessionId);
+
     // === STAN ULTRA MÓZGU v4.1 ===
     const [ultraBrainData, setUltraBrainData] = useState({
         // DNA KLIENTA (z Syntezatora)
@@ -102,13 +109,19 @@ export const useUltraBrain = (interactionId, options = {}) => {
             // Pobierz pełne dane interakcji z API
             const interaction = await getInteractionById(interactionId);
             debugLog('Otrzymana interakcja:', interaction);
-            
+
             // 🚀 PRIORYTET 4: Stop optimistic update gdy dane są gotowe
             stopOptimisticUpdate();
-            
+
             // ULTRA MÓZG v4.0: Ekstraktuj dane z nowej architektury
             const session = interaction?.session;
             const aiResponse = interaction?.ai_response_json || {};
+
+            // 🧠⚡ INTEGRACJA: Ustaw sessionId dla useSessionAnalytics
+            if (session?.id && session.id !== sessionId) {
+                setSessionId(session.id);
+                debugLog('🧠⚡ Ustawiono sessionId dla analytics:', session.id);
+            }
             
             // === DNA KLIENTA (holistic_profile z backendu) ===
             const holisticProfile = session?.holistic_psychometric_profile;
@@ -117,15 +130,26 @@ export const useUltraBrain = (interactionId, options = {}) => {
             let dnaReady = false;
             let processedHolisticProfile = null;
             
+            // 🔧 FIX: Enhanced logic for detecting real archetype data
             if (holisticProfile && typeof holisticProfile === 'object' && Object.keys(holisticProfile).length > 0) {
-                // Sprawdź czy to jest prawdziwy profil czy fallback
-                const hasRealData = holisticProfile.holistic_summary || holisticProfile.main_drive || 
-                                  (holisticProfile.communication_style && Object.keys(holisticProfile.communication_style).length > 0);
+                // Check for substantial real data (not just placeholders)
+                const hasRealData = (
+                    holisticProfile.holistic_summary && 
+                    holisticProfile.holistic_summary !== 'Profil w trakcie analizy...' &&
+                    holisticProfile.holistic_summary !== 'neutral'
+                ) || (
+                    holisticProfile.main_drive && 
+                    holisticProfile.main_drive !== 'Identyfikowanie...' &&
+                    holisticProfile.main_drive.length > 10
+                ) || (
+                    holisticProfile.communication_style && 
+                    Object.keys(holisticProfile.communication_style).length > 0 &&
+                    holisticProfile.communication_style.recommended_tone
+                );
                 
                 if (hasRealData) {
                     dnaReady = true;
                     processedHolisticProfile = {
-                        // Dekomponuj na łatwe do użycia części zgodnie z blueprintem
                         holistic_summary: holisticProfile.holistic_summary,
                         main_drive: holisticProfile.main_drive,
                         communication_style: holisticProfile.communication_style || {},
@@ -135,12 +159,43 @@ export const useUltraBrain = (interactionId, options = {}) => {
                         confidence: holisticProfile.confidence || session?.psychology_confidence || 0,
                         ...holisticProfile
                     };
-                    debugLog('✅ DNA Klienta: Rzeczywiste dane', { processedHolisticProfile });
+                    debugLog('✅ DNA Klienta: Real holistic profile data detected', { processedHolisticProfile });
                 } else {
-                    debugLog('⚠️ DNA Klienta: Dane fallback lub niekompletne', { holisticProfile });
+                    debugLog('⚠️ DNA Klienta: Placeholder or incomplete data', { holisticProfile });
                 }
-            } else {
-                debugLog('❌ DNA Klienta: Brak danych', { holisticProfile });
+            }
+            
+            // 🔧 FIX: Enhanced analytics backup with better validation
+            if (!dnaReady && analyticsData?.customer_archetype) {
+                const archetype = analyticsData.customer_archetype;
+                const hasValidArchetype = (
+                    archetype.archetype_name && 
+                    archetype.archetype_name !== 'neutral' && 
+                    archetype.archetype_name !== 'Profil w trakcie analizy...' &&
+                    archetype.archetype_name !== 'Analiza w toku...' &&
+                    archetype.archetype_name.length > 3
+                );
+                
+                if (hasValidArchetype) {
+                    dnaReady = true;
+                    processedHolisticProfile = {
+                        holistic_summary: archetype.archetype_name,
+                        main_drive: archetype.description || archetype.motivation || 'Główny motor napędowy',
+                        communication_style: { 
+                            recommended_tone: archetype.communication_style || 'Profesjonalny',
+                            keywords_to_use: archetype.key_traits || [],
+                            keywords_to_avoid: []
+                        },
+                        key_levers: archetype.key_traits || archetype.motivators || [],
+                        red_flags: archetype.sales_strategy?.dont || [],
+                        confidence: archetype.confidence || session?.psychology_confidence || 0
+                    };
+                    debugLog('✅ DNA Klienta: Valid archetype from analytics', { processedHolisticProfile });
+                }
+            }
+            
+            if (!processedHolisticProfile) {
+                debugLog('❌ DNA Klienta: Brak danych', { holisticProfile, analyticsArchetype: analyticsData?.customer_archetype });
             }
             
             // === PAKIET STRATEGICZNY (strategic_response z AI) ===
@@ -160,15 +215,18 @@ export const useUltraBrain = (interactionId, options = {}) => {
             debugLog('Pakiet Strategiczny:', { strategicData, strategiaReady });
             
             // === SUROWE DANE PSYCHOLOGY (dla wykresów) ===
-            const rawPsychology = session?.cumulative_psychology || {};
+            // 🧠⚡ INTEGRACJA: Użyj danych z analytics jeśli są dostępne
+            const rawPsychology = analyticsData?.cumulative_psychology ||
+                                analyticsData?.psychology_profile?.cumulative_psychology ||
+                                session?.cumulative_psychology || {};
             
             // === LEGACY DATA (kompatybilność wsteczna) ===
             const legacyData = {
                 analysisData: {
-                    // Mapuj nowe dane na stary format dla kompatybilności
+                    // 🧠⚡ INTEGRACJA: Mapuj dane z analytics na stary format dla kompatybilności
                     cumulative_psychology: rawPsychology,
-                    customer_archetype: session?.customer_archetype,
-                    psychology_confidence: session?.psychology_confidence || 0,
+                    customer_archetype: analyticsData?.customer_archetype || session?.customer_archetype,
+                    psychology_confidence: analyticsData?.psychology_confidence || session?.psychology_confidence || 0,
                     
                     // Sales indicators (jeśli dostępne)
                     purchase_temperature: aiResponse.purchase_temperature,
@@ -185,7 +243,7 @@ export const useUltraBrain = (interactionId, options = {}) => {
                 // DNA KLIENTA - używamy processedHolisticProfile
                 dnaKlienta: processedHolisticProfile,
                 dnaReady,
-                dnaConfidence: processedHolisticProfile?.confidence || session?.psychology_confidence || 0,
+                dnaConfidence: analyticsData?.psychology_confidence || processedHolisticProfile?.confidence || session?.psychology_confidence || 0,
                 
                 // PAKIET STRATEGICZNY
                 strategia: strategicData,
@@ -197,6 +255,17 @@ export const useUltraBrain = (interactionId, options = {}) => {
                 // KOMPATYBILNOŚĆ
                 legacy: legacyData
             };
+            
+            // 🔧 DEBUG: Log final Ultra Brain state
+            console.log('🔧 [ULTRA BRAIN DEBUG] Final Ultra Brain State:', {
+                dnaReady,
+                strategiaReady,
+                dnaKlienta: processedHolisticProfile,
+                customerArchetype: legacyData.customerArchetype,
+                psychologyConfidence: newUltraBrainState.dnaConfidence,
+                rawPsychology: Object.keys(rawPsychology),
+                analyticsData: analyticsData ? 'Available' : 'Not available'
+            });
             
             debugLog('🔧 v4.1: Nowy stan Ultra Mózgu:', newUltraBrainState);
             
@@ -228,6 +297,29 @@ export const useUltraBrain = (interactionId, options = {}) => {
             fetchUltraBrainData();
         }
     }, [autoFetch, interactionId, fetchUltraBrainData]);
+
+    // 🧠⚡ INTEGRACJA: Reaguj na zmiany w danych analytics
+    useEffect(() => {
+        if (analyticsData && Object.keys(analyticsData).length > 0) {
+            debugLog('🧠⚡ Otrzymano dane analytics, aktualizuję Ultra Mózg:', analyticsData);
+
+            // Zaktualizuj stan używając danych z analytics
+            setUltraBrainData(prevState => ({
+                ...prevState,
+                surowePsychology: analyticsData.cumulative_psychology ||
+                                analyticsData.psychology_profile?.cumulative_psychology || {},
+                legacy: {
+                    ...prevState.legacy,
+                    analysisData: {
+                        cumulative_psychology: analyticsData.cumulative_psychology ||
+                                             analyticsData.psychology_profile?.cumulative_psychology || {},
+                        customer_archetype: analyticsData.customer_archetype,
+                        psychology_confidence: analyticsData.psychology_confidence || 0
+                    }
+                }
+            }));
+        }
+    }, [analyticsData, debugLog]);
 
     // INTELIGENTNE POLLING - zatrzymuje się gdy dane są kompletne
     useEffect(() => {
@@ -283,8 +375,57 @@ export const useUltraBrain = (interactionId, options = {}) => {
         refresh: fetchUltraBrainData,
         
         // POMOCNICZE GETTERY
-        getArchetypeName: () => ultraBrainData.dnaKlienta?.holistic_summary || 'Analiza w toku...',
-        getMainDrive: () => ultraBrainData.dnaKlienta?.main_drive || 'Identyfikowanie...',
+        getArchetypeName: () => {
+            // 🔧 FIX: Improved fallback logic with better data validation
+            if (ultraBrainData.dnaReady && ultraBrainData.dnaKlienta?.holistic_summary) {
+                const summary = ultraBrainData.dnaKlienta.holistic_summary;
+                if (summary !== 'Profil w trakcie analizy...' && summary !== 'neutral' && summary.length > 3) {
+                    return summary;
+                }
+            }
+            
+            // Check analytics data as secondary source
+            if (analyticsData?.customer_archetype?.archetype_name) {
+                const archetypeName = analyticsData.customer_archetype.archetype_name;
+                if (archetypeName !== 'neutral' && archetypeName !== 'Profil w trakcie analizy...' && archetypeName.length > 3) {
+                    return archetypeName;
+                }
+            }
+            
+            // Check legacy data as tertiary source
+            if (ultraBrainData.legacy?.customerArchetype?.archetype_name) {
+                const legacyName = ultraBrainData.legacy.customerArchetype.archetype_name;
+                if (legacyName !== 'neutral' && legacyName !== 'Profil w trakcie analizy...' && legacyName.length > 3) {
+                    return legacyName;
+                }
+            }
+            
+            return 'Analiza w toku...';
+        },
+        getMainDrive: () => {
+            // 🔧 FIX: Enhanced main drive detection
+            if (ultraBrainData.dnaReady && ultraBrainData.dnaKlienta?.main_drive) {
+                const mainDrive = ultraBrainData.dnaKlienta.main_drive;
+                if (mainDrive !== 'Identyfikowanie...' && mainDrive.length > 5) {
+                    return mainDrive;
+                }
+            }
+            
+            // Check analytics data for description
+            if (analyticsData?.customer_archetype?.description) {
+                const description = analyticsData.customer_archetype.description;
+                if (description.length > 5) {
+                    return description;
+                }
+            }
+            
+            // Check analytics motivation field
+            if (analyticsData?.customer_archetype?.motivation) {
+                return analyticsData.customer_archetype.motivation;
+            }
+            
+            return 'Identyfikowanie głównego motoru...';
+        },
         getCommunicationStyle: () => ultraBrainData.dnaKlienta?.communication_style || {},
         getKeyLevers: () => ultraBrainData.dnaKlienta?.key_levers || [],
         getRedFlags: () => ultraBrainData.dnaKlienta?.red_flags || [],

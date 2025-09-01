@@ -11,14 +11,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import (
-    init_db, 
-    close_db, 
+    init_db,
+    close_db,
     get_db,
     verify_database_connection,
     get_database_health
 )
 
+# Inicjalizacja serwisów AI
+from app.services.qdrant_service import qdrant_service
+from app.services.ai.ai_service_factory import initialize_ai_services
+from app.services.ai_service import initialize_ai_service
+
 # Konfiguracja logowania
+# Reduce verbose logging for production
+logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARNING)
+
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -43,17 +53,34 @@ async def lifespan(app: FastAPI):
     try:
         # Inicjalizacja bazy danych
         await init_db()
-        
+
         # Weryfikacja połączenia
         if await verify_database_connection():
             logger.info("✅ Połączenie z bazą danych aktywne")
         else:
             logger.warning("⚠️ Problem z połączeniem do bazy danych")
-            
+
+        # 🧠⚡ INICJALIZACJA ULTRA MÓZGU: AIService
+        logger.info("🧠⚡ Inicjalizuję Ultra Mózg - AIService...")
+        try:
+            # Inicjalizuj podstawowe serwisy AI
+            initialize_ai_services(qdrant_service)
+            logger.info("✅ Podstawowe serwisy AI zainicjalizowane")
+
+            # Inicjalizuj główny orchestrator AIService
+            initialize_ai_service(qdrant_service)
+            logger.info("🧠⚡ Ultra Mózg aktywny - AIService zainicjalizowany")
+
+        except Exception as ai_error:
+            logger.error(f"❌ Błąd inicjalizacji Ultra Mózgu: {ai_error}")
+            logger.warning("⚠️ Aplikacja będzie działać bez analizy psychometrycznej AI")
+            logger.warning("⚠️ Sprawdź kompatybilność wersji Qdrant client/server")
+            # Nie przerywamy uruchamiania aplikacji z powodu błędu AI
+
     except Exception as e:
         logger.error(f"❌ Błąd podczas uruchamiania aplikacji: {e}")
         raise
-    
+
     logger.info("✅ Aplikacja uruchomiona pomyślnie")
     
     yield

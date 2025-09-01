@@ -2,10 +2,43 @@ import { useState, useEffect, useCallback } from 'react';
 import { getInteractionById } from '../services';
 
 /**
- * Hook do zarządzania danymi analizy psychometrycznej v3.0
- * NOWA ARCHITEKTURA: Pobiera session-level psychology zamiast interaction-level
- * 
+ * Funkcja pomocnicza do sprawdzania stabilności danych między iteracjami
+ * PRZYORYTET 1: Zapewnia, że dane przestały się zmieniać przed zakończeniem polling
+ */
+const checkDataStability = (currentData, previousData) => {
+  if (!previousData || !currentData) return false;
+
+  // Sprawdź kluczowe pola psychometryczne
+  const currentPsych = currentData.cumulative_psychology || {};
+  const previousPsych = previousData.cumulative_psychology || {};
+
+  // Porównaj Big Five (główne cechy)
+  const currentBigFive = currentPsych.big_five || {};
+  const previousBigFive = previousPsych.big_five || {};
+
+  const bigFiveStable = Object.keys(currentBigFive).every(trait => {
+    const currentScore = currentBigFive[trait]?.score;
+    const previousScore = previousBigFive[trait]?.score;
+    return Math.abs((currentScore || 0) - (previousScore || 0)) < 0.1; // Tolerancja 0.1
+  });
+
+  // Porównaj archetyp klienta
+  const archetypeStable = currentData.customer_archetype === previousData.customer_archetype;
+
+  // Porównaj confidence level
+  const confidenceStable = Math.abs(
+    (currentData.psychology_confidence || 0) - (previousData.psychology_confidence || 0)
+  ) < 1; // Tolerancja 1%
+
+    return bigFiveStable && archetypeStable && confidenceStable;
+};
+
+/**
+ * Hook do zarządzania danymi analizy psychometrycznej v4.0
+ * NOWA ARCHITEKTURA: Pobiera session-level psychology z rygorystycznym sprawdzaniem stabilności
+ *
  * Zmiana: analysisData zawiera teraz dane z session (cumulative_psychology, customer_archetype)
+ * PRZYORYTET 1: Polling trwa dopóki dane nie są kompletne I stabilne przez minimum 3 iteracje
  */
 export const usePsychometrics = (interactionId, options = {}) => {
     const { 
@@ -16,10 +49,12 @@ export const usePsychometrics = (interactionId, options = {}) => {
     } = options;
     
     const [analysisData, setAnalysisData] = useState(null);
+    const [previousData, setPreviousData] = useState(null); // Dla sprawdzania stabilności
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pollingActive, setPollingActive] = useState(false);
     const [attempts, setAttempts] = useState(0);
+    const [dataStabilityCounter, setDataStabilityCounter] = useState(0); // Liczy stabilne iteracje
 
     const fetchAnalysisData = useCallback(async () => {
         if (!interactionId) return;
@@ -37,25 +72,21 @@ export const usePsychometrics = (interactionId, options = {}) => {
             const sessionPsychology = session?.cumulative_psychology || {};
             const customerArchetype = session?.customer_archetype || null;
             const psychologyConfidence = session?.psychology_confidence || 0;
-            const activeClarifyingQuestions = session?.active_clarifying_questions || [];
             
             // Combined data z session-level psychology
             const combinedData = {
                 // Session-level psychology data (NOWE v3.0)
                 cumulative_psychology: sessionPsychology,
-                customer_archetype: customerArchetype, 
+                customer_archetype: customerArchetype,
                 psychology_confidence: psychologyConfidence,
-                active_clarifying_questions: activeClarifyingQuestions,
-                
+
                 // MODUŁ 4: Sales indicators
                 sales_indicators: session?.sales_indicators || null,
-                
+
                 // Backwards compatibility z interaction-level data
                 ...sessionPsychology,  // Spread session psychology jako główne dane
-                
+
                 // Legacy fields dla compatibility
-                needs_more_info: activeClarifyingQuestions.length > 0,
-                clarifying_questions: activeClarifyingQuestions,
                 analysis_confidence: psychologyConfidence
             };
             
@@ -67,28 +98,46 @@ export const usePsychometrics = (interactionId, options = {}) => {
                 console.log('🧠 Psychology Confidence:', `${psychologyConfidence}%`);
             }
             
+            // PRZYORYTET 1: Sprawdź stabilność danych przed aktualizacją stanu
+            const isDataStable = checkDataStability(combinedData, previousData);
+
             setAnalysisData(combinedData);
+            setPreviousData(combinedData); // Zapisz jako poprzednie dane
             setAttempts(prev => prev + 1);
-            
-            // NOWA LOGIKA v3.0: Sprawdź różne typy kompletnych danych z session-level
+
+            // NOWA LOGIKA v4.0: Rygorystyczne sprawdzanie kompletności I stabilności
             const hasFullPsychology = sessionPsychology.big_five || sessionPsychology.disc || sessionPsychology.schwartz_values;
             const hasArchetypeReady = customerArchetype && psychologyConfidence >= 75;
-            const hasActiveQuestions = activeClarifyingQuestions.length > 0;
-            const hasCompleteData = hasFullPsychology || hasArchetypeReady || hasActiveQuestions;
-            
-            console.log('🔍 usePsychometrics v3.0 - hasFullPsychology:', hasFullPsychology);
-            console.log('🔍 usePsychometrics v3.0 - hasArchetypeReady:', hasArchetypeReady);
-            console.log('🔍 usePsychometrics v3.0 - hasActiveQuestions:', hasActiveQuestions);
-            console.log('🔍 usePsychometrics v3.0 - hasCompleteData:', hasCompleteData);
-            
-            if (hasCompleteData) {
-                console.log('🎯 usePsychometrics - dane kompletne, zatrzymuję polling');
-                setPollingActive(false); // Zatrzymaj polling gdy mamy dane
-            } else if (enablePolling && attempts < 12) { // Max 12 prób = 1 minuta
-                console.log('⏳ usePsychometrics - brak danych, kontynuuję polling...');
-                setPollingActive(true); // Kontynuuj polling
+            const hasSalesIndicators = session?.sales_indicators && Object.keys(session.sales_indicators).length > 0;
+
+            // NOWE: Sprawdzanie kompletności - wymagamy pełnego zestawu danych
+            const isPsychologyComplete = hasFullPsychology && psychologyConfidence >= 80;
+            const isArchetypeComplete = hasArchetypeReady;
+            const isDataComplete = isPsychologyComplete && isArchetypeComplete && hasSalesIndicators;
+
+            // Liczenie stabilnych iteracji
+            if (isDataStable && isDataComplete) {
+                setDataStabilityCounter(prev => prev + 1);
             } else {
-                console.log('⚠️ usePsychometrics - przekroczono limit prób lub polling wyłączony');
+                setDataStabilityCounter(0); // Reset jeśli dane się zmieniły lub nie są kompletne
+            }
+
+            console.log('🔍 usePsychometrics v4.0 - ANALYSIS STATUS:');
+            console.log('  - Psychology Complete:', isPsychologyComplete, `(confidence: ${psychologyConfidence}%)`);
+            console.log('  - Archetype Complete:', isArchetypeComplete);
+            console.log('  - Sales Indicators:', hasSalesIndicators);
+            console.log('  - Data Stable:', isDataStable, `(counter: ${dataStabilityCounter}/3)`);
+            console.log('  - FULLY COMPLETE:', isDataComplete && dataStabilityCounter >= 3);
+
+            // NOWA LOGIKA: Polling trwa dopóki dane nie są kompletne I stabilne przez 3 iteracje
+            if (isDataComplete && dataStabilityCounter >= 3) {
+                console.log('🎯 usePsychometrics v4.0 - DANE KOMPLETNE I STABILNE - zatrzymuję polling');
+                setPollingActive(false);
+            } else if (enablePolling && attempts < 20) { // Zwiększony limit do 20 prób = 1.67 minuty
+                console.log(`⏳ usePsychometrics v4.0 - kontynuuję polling... (attempt ${attempts + 1}/20)`);
+                setPollingActive(true);
+            } else {
+                console.log('⚠️ usePsychometrics v4.0 - przekroczono limit prób lub polling wyłączony');
                 setPollingActive(false);
             }
             
@@ -140,10 +189,13 @@ export const usePsychometrics = (interactionId, options = {}) => {
         error,
         refetch: fetchAnalysisData,
         hasData: !!analysisData,
-        // KROK 2: Dodatkowe informacje o polling
+        // PRZYORYTET 1: Rozszerzone informacje o polling i stabilności
         isPolling: pollingActive,
         attempts,
-        maxAttempts: 12
+        maxAttempts: 20, // Zwiększony limit prób
+        dataStabilityCounter,
+        isDataStable: dataStabilityCounter >= 3,
+        isAnalysisComplete: dataStabilityCounter >= 3 && analysisData // Dane kompletne gdy stabilne przez 3 iteracje
     };
 };
 

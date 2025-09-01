@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Backend FastAPI
+  backend:
+    build: ./backend
+    container_name: sales-copilot-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/sales_copilot
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_API_URL=${OLLAMA_API_URL}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - qdrant
+    networks:
+      - sales-copilot-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: sales-copilot-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=sales_copilot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - sales-copilot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: sales-copilot-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - sales-copilot-network
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+  # Frontend React (dla development)
+  frontend:
+    build: ./frontend
+    container_name: sales-copilot-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+    networks:
+      - sales-copilot-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:
+  qdrant_storage:
+
+networks:
+  sales-copilot-network:
+    driver: bridge

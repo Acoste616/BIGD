@@ -4,7 +4,6 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 
 // Import komponentów zgodnie z CHANGELOG
 import Dashboard from './pages/Dashboard';
-import AddClient from './pages/AddClient';
 import ClientDetail from './pages/ClientDetail';
 import NewSession from './pages/NewSession';
 import SessionDetail from './pages/SessionDetail';
@@ -29,7 +28,6 @@ function App() {
         <Route path="/analysis/new" element={<ConversationView />} />
         
         {/* Zarządzanie klientami */}
-        <Route path="/clients/new" element={<AddClient />} />
         <Route path="/clients/:clientId" element={<ClientDetail />} />
         
         {/* Sesje */}

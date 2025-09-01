@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 # Konfiguracja
-API_URL = "http://localhost:8000/api/v1/knowledge/"
+API_URL = "http://backend:8000/api/v1/knowledge/"
 NUGGETS_FILE = "Nugget.json"
 
 # Konfiguracja logowania

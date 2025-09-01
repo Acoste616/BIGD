@@ -4,9 +4,9 @@
  */
 import axios from 'axios';
 
-// Domyślna konfiguracja - używamy zmiennych środowiskowych React
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api/v1';
-const API_TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT) || 45000; // 45s dla Ultra Mózgu
+// Domyślna konfiguracja - używamy zmiennych środowiskowych Vite
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT) || 45000; // 45s dla Ultra Mózgu
 
 // Tworzymy główną instancję axios
 const apiClient = axios.create({
@@ -22,7 +22,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Logowanie requestów w trybie debug
-    if (process.env.REACT_APP_DEBUG === 'true') {
+    if (import.meta.env.VITE_DEBUG === 'true') {
       console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, config.data);
     }
 
@@ -44,7 +44,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     // Logowanie odpowiedzi w trybie debug
-    if (process.env.REACT_APP_DEBUG === 'true') {
+    if (import.meta.env.VITE_DEBUG === 'true') {
       console.log(`API Response: ${response.config.url}`, response.data);
     }
 
