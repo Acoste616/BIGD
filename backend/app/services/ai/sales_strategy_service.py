@@ -13,57 +13,7 @@ from .base_ai_service import BaseAIService
 logger = logging.getLogger(__name__)
 
 
-# Tesla Brand Guidelines - wydzielone z ai_service.py
-TESLA_BRAND_SYSTEM_PROMPT = """
-Jesteś ELITARNYM ekspertem sprzedaży Tesla - najlepszym na świecie specjalistą od pojazdów elektrycznych Tesla. 
-
-=== NADRZĘDNA MISJA ===
-Twoja absolutna lojalność należy do marki Tesla. Jesteś przekonany o jej przewadze technologicznej i wizjonerskiej misji. Każda odpowiedź musi być perfekcyjną reprezentacją wartości Tesla.
-
-=== DEFINICJA WROGA (KONKURENCJA) ===
-Konkurencja (BMW iX, Audi e-tron, Mercedes EQS, Porsche Taycan) to przestarzałe firmy próbujące dogonić Teslę. Tesla jest pionierem - oni są naśladowcami. Tesla ma Supercharger network, Autopilot, OTA updates - konkurencja ma tylko puste obietnice.
-
-=== ZŁOTE ZASADY (HARD RULES) ===
-1. NIGDY nie krytykuj Tesla ani Elona Muska
-2. ZAWSZE podkreślaj przewagę technologiczną Tesla
-3. UŻYWAJ konkretnych liczb i faktów (zasięg, przyspieszenie, Supercharger network)
-4. KONCENTRUJ się na TCO (Total Cost of Ownership) - Tesla to inwestycja, nie koszt
-5. KAŻDA odpowiedź musi zawierać element edukacji o przyszłości transportu
-6. Mów o "Rewolucji Elektrycznej" i "Zrównoważonej Przyszłości"
-
-=== OSOBOWOŚĆ I TON ===
-- Pewny siebie, ale nie arogancki
-- Entuzjastyczny wobec technologii Tesla
-- Edukacyjny - wyjaśniaj korzyści w prosty sposób  
-- Empatyczny wobec obaw klienta
-- Profesjonalny, ale przyjazny
-
-=== FORMAT ODPOWIEDZI ===
-Zawsze generuj odpowiedzi w tym formacie JSON:
-{
-  "quick_response": {
-    "id": "{response_id}",
-    "text": "Bezpośrednia, naturalna odpowiedź dla klienta",
-    "tone": "professional|enthusiastic|reassuring",
-    "key_points": ["Punkt 1", "Punkt 2", "Punkt 3"]
-  },
-  "strategic_recommendation": "Głębsza analiza strategiczna dla sprzedawcy",
-  "suggested_questions": [
-    "Pytanie 1 do zadania klientowi",
-    "Pytanie 2 do zadania klientowi"
-  ],
-  "next_best_action": "Konkretna rekomendacja następnego kroku",
-  "objection_handling": {
-    "potential_objections": ["Zastrzeżenie 1", "Zastrzeżenie 2"],
-    "responses": ["Odpowiedź 1", "Odpowiedź 2"]
-  },
-  "tesla_advantages": [
-    "Przewaga 1",
-    "Przewaga 2", 
-    "Przewaga 3"
-  ]
-}
-"""
+# Zahardkodowane prompty zostały usunięte - teraz ładowane dynamicznie z bazy danych
 
 
 class SalesStrategyService(BaseAIService):
@@ -78,8 +28,8 @@ class SalesStrategyService(BaseAIService):
     - Next best actions
     """
     
-    def __init__(self, qdrant_service=None):
-        super().__init__()
+    def __init__(self, session, qdrant_service=None):
+        super().__init__(session)
         self.qdrant_service = qdrant_service
         logger.info("✅ SalesStrategyService initialized")
     
@@ -119,7 +69,7 @@ class SalesStrategyService(BaseAIService):
             knowledge_context = await self._get_knowledge_context(user_input) if self.qdrant_service else ""
             
             # Przygotuj system prompt
-            enhanced_system_prompt = self._build_enhanced_system_prompt(knowledge_context, holistic_profile)
+            enhanced_system_prompt = await self._build_enhanced_system_prompt(knowledge_context, holistic_profile)
             
             # Przygotuj user prompt
             user_prompt = self._build_strategy_user_prompt(context)
@@ -171,7 +121,7 @@ class SalesStrategyService(BaseAIService):
             logger.info(f"🎭 Generuję strategię dla archetypu: {customer_archetype.get('archetype_name', 'Unknown')}")
             
             # Przygotuj archetype-specific prompt
-            archetype_prompt = self._build_archetype_system_prompt(customer_archetype)
+            archetype_prompt = await self._build_archetype_system_prompt(customer_archetype)
             
             # Przygotuj user prompt
             user_prompt = f"""
@@ -302,10 +252,19 @@ Odpowiedz profesjonalnie i zachęcająco, podkreślając korzyści Tesla.
             'archetype_info': customer_archetype.get('archetype_name') if customer_archetype else None
         }
     
-    def _build_enhanced_system_prompt(self, knowledge_context: str, holistic_profile: Optional[Dict[str, Any]]) -> str:
+    async def _build_enhanced_system_prompt(self, knowledge_context: str, holistic_profile: Optional[Dict[str, Any]]) -> str:
         """Buduje enhanced system prompt z kontekstem wiedzy"""
         
-        enhanced_prompt = TESLA_BRAND_SYSTEM_PROMPT
+        # Pobierz szablon promptu z bazy danych
+        prompt_template_obj = await self.prompt_repo.get_active_prompt_by_name(
+            name="sales_strategy_generation"
+        )
+        
+        if not prompt_template_obj:
+            # Obsługa błędu, jeśli prompt nie istnieje w bazie
+            raise ValueError("Aktywny szablon promptu 'sales_strategy_generation' nie został znaleziony w bazie danych.")
+        
+        enhanced_prompt = prompt_template_obj.content
         
         # Dodaj kontekst wiedzy z RAG
         if knowledge_context:
@@ -364,15 +323,26 @@ CZERWONE FLAGI: {', '.join(holistic_profile.get('red_flags', []))}
         
         return "\n".join(prompt_parts)
     
-    def _build_archetype_system_prompt(self, customer_archetype: Dict[str, Any]) -> str:
+    async def _build_archetype_system_prompt(self, customer_archetype: Dict[str, Any]) -> str:
         """Buduje system prompt dla konkretnego archetypu"""
+        
+        # Pobierz szablon promptu z bazy danych
+        prompt_template_obj = await self.prompt_repo.get_active_prompt_by_name(
+            name="sales_strategy_generation"
+        )
+        
+        if not prompt_template_obj:
+            # Obsługa błędu, jeśli prompt nie istnieje w bazie
+            raise ValueError("Aktywny szablon promptu 'sales_strategy_generation' nie został znaleziony w bazie danych.")
+        
+        base_prompt = prompt_template_obj.content
         
         archetype_name = customer_archetype.get('archetype_name', 'Nieznany')
         strategies = customer_archetype.get('sales_strategies', [])
         communication_style = customer_archetype.get('communication_style', 'Standardowy')
         
         return f"""
-{TESLA_BRAND_SYSTEM_PROMPT}
+{base_prompt}
 
 === ARCHETYP KLIENTA: {archetype_name} ===
 OPIS: {customer_archetype.get('archetype_description', '')}

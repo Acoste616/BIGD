@@ -9,6 +9,7 @@ import { createFeedback } from '../services';
 export const useInteractionFeedback = (interactionId) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [submittedRating, setSubmittedRating] = useState(null); // Przechowuje oddany głos (1 lub -1)
   const [feedbackData, setFeedbackData] = useState(null); // Pełne dane feedback z backendu
 
@@ -31,16 +32,18 @@ export const useInteractionFeedback = (interactionId) => {
 
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       // DEPRECATED: Stary hook - używaj FeedbackButtons dla granularnego feedback
       const response = { success: true };
       setSubmittedRating(rating);
       setFeedbackData(response);
+      setSuccess('Dziękujemy, uczę się!');
       
       // Auto-clear success state po 3 sekundach
       setTimeout(() => {
-        setError(null);
+        setSuccess(null);
       }, 3000);
 
     } catch (err) {
@@ -64,6 +67,7 @@ export const useInteractionFeedback = (interactionId) => {
     setSubmittedRating(null);
     setFeedbackData(null);
     setError(null);
+    setSuccess(null);
     setIsLoading(false);
   };
 
@@ -83,6 +87,7 @@ export const useInteractionFeedback = (interactionId) => {
     // Stan
     isLoading,
     error,
+    success,
     submittedRating,
     feedbackData,
     hasVoted,

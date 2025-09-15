@@ -151,7 +151,7 @@ async def database_health_check(db: AsyncSession = Depends(get_db)) -> Dict[str,
 
 
 # Import i rejestracja routerów
-from app.routers import clients, sessions, interactions, feedback, knowledge, dojo
+from app.routers import clients, sessions, interactions, feedback, knowledge, dojo, stream
 
 # Rejestracja routerów API
 app.include_router(clients.router, prefix="/api/v1")
@@ -160,6 +160,7 @@ app.include_router(interactions.router, prefix="/api/v1")
 app.include_router(feedback.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(dojo.router, prefix="/api/v1")  # AI Dojo - Moduł 3
+app.include_router(stream.router, prefix="/api/v1")  # WebSocket streaming
 
 # Przyszłe routery (do dodania w kolejnych krokach)
 # from app.routers import auth, analysis

@@ -23,6 +23,12 @@ from app.schemas.dojo import (
 )
 from app.services.ai_service import ai_service
 from app.services.qdrant_service import qdrant_service
+from app.repositories.interaction_repository import InteractionRepository
+from app.repositories.session_repository import SessionRepository
+from app.repositories.client_repository import ClientRepository
+from app.repositories.feedback_repository import FeedbackRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -404,6 +410,193 @@ class AdminDialogueService:
         logger.info(f"🔚 AI Dojo: Zamknięto sesję treningową: {session_id}")
         return True
 
+    async def process_feedback_for_learning(
+        self,
+        feedback_id: int,
+        interaction_id: int,
+        suggestion_id: str,
+        suggestion_type: str,
+        rating: int
+    ) -> bool:
+        """
+        Process feedback for learning by creating knowledge nuggets
+        
+        Args:
+            feedback_id: ID of the feedback record
+            interaction_id: ID of the interaction
+            suggestion_id: ID of the suggestion being rated
+            suggestion_type: Type of suggestion (quick_response, suggested_action)
+            rating: Rating value (1 for positive, -1 for negative)
+
+        Returns:
+            bool: True if processing was successful
+        """
+        # Initialize repositories
+        interaction_repo = InteractionRepository()
+        session_repo = SessionRepository()
+        client_repo = ClientRepository()
+        feedback_repo = FeedbackRepository()
+        
+        try:
+            # Create a new database session for this operation
+            from app.core.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                # 1. Retrieve interaction and session data
+                interaction = await interaction_repo.get_interaction(db, interaction_id)
+                if not interaction:
+                    logger.error(f"Interaction {interaction_id} not found")
+                    return False
+                
+                session = await session_repo.get_session(db, interaction.session_id)
+                if not session:
+                    logger.error(f"Session {interaction.session_id} not found")
+                    return False
+                    
+                client = await client_repo.get_client(db, session.client_id)
+                if not client:
+                    logger.error(f"Client {session.client_id} not found")
+                    return False
+                
+                # 2. Extract suggestion content from AI response
+                suggestion_content = self._extract_suggestion_content(
+                    interaction.ai_response_json,
+                    suggestion_id,
+                    suggestion_type
+                )
+                
+                if not suggestion_content:
+                    logger.warning(f"Suggestion {suggestion_id} of type {suggestion_type} not found in interaction {interaction_id}")
+                    # Try to get more details about the AI response structure
+                    ai_response_keys = list(interaction.ai_response_json.keys()) if isinstance(interaction.ai_response_json, dict) else "Not a dict"
+                    logger.debug(f"AI response keys: {ai_response_keys}")
+                    return False
+                
+                # 3. Create knowledge nugget
+                knowledge_nugget = self._create_knowledge_nugget(
+                    client=client,
+                    suggestion_content=suggestion_content,
+                    suggestion_type=suggestion_type,
+                    rating=rating
+                )
+                
+                # Log the knowledge nugget being created
+                logger.info(f"Creating knowledge nugget: {knowledge_nugget['title']}")
+                logger.debug(f"Knowledge nugget content: {knowledge_nugget['content']}")
+                
+                # 4. Store in Qdrant
+                try:
+                    point_id = await self.qdrant_service.add_knowledge(
+                        content=knowledge_nugget["content"],
+                        title=knowledge_nugget["title"],
+                        knowledge_type=knowledge_nugget["knowledge_type"],
+                        archetype=knowledge_nugget["archetype"],
+                        tags=knowledge_nugget["tags"],
+                        source=knowledge_nugget["source"]
+                    )
+                    logger.info(f"Successfully stored knowledge nugget in Qdrant with point ID: {point_id}")
+                except Exception as qdrant_error:
+                    logger.error(f"Failed to store knowledge nugget in Qdrant: {qdrant_error}")
+                    raise
+                
+                # 5. Mark feedback as processed
+                mark_result = await feedback_repo.mark_feedback_as_processed(db, feedback_id)
+                if not mark_result:
+                    logger.warning(f"Failed to mark feedback {feedback_id} as processed")
+                else:
+                    logger.info(f"Successfully marked feedback {feedback_id} as processed")
+                
+            logger.info(f"Successfully processed feedback for learning: {suggestion_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error processing feedback for learning - feedback_id: {feedback_id}, interaction_id: {interaction_id}, suggestion_id: {suggestion_id}, error: {e}")
+            return False
+
+    def _extract_suggestion_content(
+        self,
+        ai_response: Dict[str, Any],
+        suggestion_id: str,
+        suggestion_type: str
+    ) -> Optional[str]:
+        """
+        Extract suggestion content from AI response based on ID and type
+        """
+        if not ai_response or not isinstance(ai_response, dict):
+            return None
+            
+        try:
+            if suggestion_type == "quick_response":
+                # Handle direct quick_response structure
+                if ai_response.get("quick_response", {}).get("id") == suggestion_id:
+                    return ai_response["quick_response"]["text"]
+                # Handle nested quick_response structure
+                quick_response = ai_response.get("quick_response", {})
+                if isinstance(quick_response, dict) and quick_response.get("id") == suggestion_id:
+                    return quick_response.get("text") or quick_response.get("content")
+                    
+            elif suggestion_type == "suggested_action":
+                # Handle array of suggested_actions
+                suggested_actions = ai_response.get("suggested_actions", [])
+                if isinstance(suggested_actions, list):
+                    for action in suggested_actions:
+                        if isinstance(action, dict) and action.get("id") == suggestion_id:
+                            return action.get("text") or action.get("action") or action.get("content")
+                
+                # Handle single suggested_action
+                single_action = ai_response.get("suggested_action", {})
+                if isinstance(single_action, dict) and single_action.get("id") == suggestion_id:
+                    return single_action.get("text") or single_action.get("action") or single_action.get("content")
+                    
+            # Generic fallback for any suggestion type
+            # Check if there's a suggestions array or dict
+            suggestions = ai_response.get("suggestions", {})
+            if isinstance(suggestions, dict):
+                suggestion = suggestions.get(suggestion_id)
+                if isinstance(suggestion, dict):
+                    return suggestion.get("text") or suggestion.get("content") or suggestion.get("action")
+                elif isinstance(suggestion, str):
+                    return suggestion
+                    
+            # Check if ai_response itself contains the suggestion_id
+            if ai_response.get(suggestion_id):
+                suggestion = ai_response.get(suggestion_id)
+                if isinstance(suggestion, dict):
+                    return suggestion.get("text") or suggestion.get("content") or suggestion.get("action")
+                elif isinstance(suggestion, str):
+                    return suggestion
+                    
+        except Exception as e:
+            logger.error(f"Error extracting suggestion content: {e}")
+            
+        return None
+
+    def _create_knowledge_nugget(
+        self,
+        client: Any,
+        suggestion_content: str,
+        suggestion_type: str,
+        rating: int
+    ) -> Dict[str, Any]:
+        """
+        Create a knowledge nugget from feedback data
+        """
+        client_archetype = getattr(client, "archetype", "Unknown") if client else "Unknown"
+        
+        if rating > 0:  # Positive feedback
+            title = f"Effective {suggestion_type} for {client_archetype} archetype"
+            content = f"For client with archetype '{client_archetype}', suggestion '{suggestion_content}' was effective."
+        else:  # Negative feedback
+            title = f"Ineffective {suggestion_type} for {client_archetype} archetype"
+            content = f"For client with archetype '{client_archetype}', suggestion '{suggestion_content}' was ineffective."
+        
+        return {
+            "title": title,
+            "content": content,
+            "knowledge_type": "feedback_learning",
+            "archetype": client_archetype,
+            "tags": ["feedback", "learning", suggestion_type],
+            "source": "user_feedback"
+        }
 
 # Singleton instancja serwisu AI Dojo
 admin_dialogue_service = AdminDialogueService()

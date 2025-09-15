@@ -277,3 +277,13 @@ export const clearApiCache = (prefix = null) => {
 
 // Eksport feedback API (Blueprint Granularny System Ocen)
 export * as feedbackApi from './feedbackApi';
+
+// Unified API service exports
+export * from './api';
+export * from './clientsApi';
+export * from './sessionsApi';
+export * from './interactionsApi';
+export * from './feedbackApi';
+export * from './knowledgeApi';
+export * from './analyticsApi';
+export * from './dojoApi';

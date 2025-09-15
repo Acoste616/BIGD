@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getInteractionById } from '../services';
+import api from '../services/api';
 
 /**
  * Hook do zarządzania danymi analizy psychometrycznej v3.0
@@ -144,6 +145,59 @@ export const usePsychometrics = (interactionId, options = {}) => {
         isPolling: pollingActive,
         attempts,
         maxAttempts: 12
+    };
+};
+
+/**
+ * Hook do pobierania danych analizy psychometrycznej dla konkretnej sesji
+ * NOWY HOOK: Pobiera dane z nowego endpointu /sessions/{session_id}/psychometrics
+ */
+export const useSessionPsychometrics = (sessionId, options = {}) => {
+    const { 
+        autoFetch = true, 
+        onError = null
+    } = options;
+    
+    const [psychometricsData, setPsychometricsData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const fetchPsychometrics = useCallback(async () => {
+        if (!sessionId) return;
+        
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Pobierz dane psychometryczne z nowego endpointu
+            const response = await api.get(`/sessions/${sessionId}/psychometrics`);
+            setPsychometricsData(response.data);
+            
+        } catch (err) {
+            console.error('Błąd podczas pobierania danych psychometrycznych:', err);
+            setError(err.message || 'Nie udało się pobrać danych psychometrycznych');
+            
+            if (onError) {
+                onError(err);
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [sessionId, onError]);
+
+    // Automatyczne pobieranie danych przy inicjalizacji
+    useEffect(() => {
+        if (autoFetch && sessionId) {
+            fetchPsychometrics();
+        }
+    }, [autoFetch, sessionId, fetchPsychometrics]);
+
+    return {
+        psychometricsData,
+        loading,
+        error,
+        refetch: fetchPsychometrics,
+        hasData: !!psychometricsData
     };
 };
 

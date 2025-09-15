@@ -13,3 +13,47 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+
+/* === PROGRESSIVE DISCLOSURE ANIMATIONS === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Strategic Panel Progressive Disclosure */
+.strategic-panel > * {
+  animation: fadeIn 0.5s ease-in-out forwards;
+}
+
+.initial-message {
+  padding: 2rem;
+  text-align: center;
+  color: #9ca3af; /* gray-400 */
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+/* Smooth transitions for module appearance */
+.progressive-module {
+  animation: fadeIn 0.5s ease-in-out;
+  transition: all 0.3s ease;
+}
+
+.progressive-module:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

@@ -5,7 +5,8 @@
 import logging
 import asyncio
 import json
-from fastapi import APIRouter, Depends, Request, HTTPException
+from typing import Dict, List
+from fastapi import APIRouter, Depends, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,9 +16,58 @@ from app.repositories.session_repository import SessionRepository
 from app.repositories.interaction_repository import InteractionRepository
 from app.schemas.stream import SessionStreamRequest
 
+# Import DojoMessageRequest from dojo schema
+from app.schemas.dojo import DojoMessageRequest
+
+# Create an alias for backward compatibility
+DojoMessageCreate = DojoMessageRequest
+
 router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class ConnectionManager:
+    """
+    Manages active WebSocket connections for real-time communication.
+    """
+    def __init__(self):
+        # Store active connections by session_id
+        self.active_connections: Dict[int, List[WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, session_id: int):
+        """Accept a WebSocket connection and store it."""
+        await websocket.accept()
+        if session_id not in self.active_connections:
+            self.active_connections[session_id] = []
+        self.active_connections[session_id].append(websocket)
+        logger.info(f"WebSocket connected for session {session_id}. Total connections: {len(self.active_connections[session_id])}")
+    
+    def disconnect(self, websocket: WebSocket, session_id: int):
+        """Remove a WebSocket connection."""
+        if session_id in self.active_connections:
+            self.active_connections[session_id].remove(websocket)
+            if not self.active_connections[session_id]:
+                del self.active_connections[session_id]
+            logger.info(f"WebSocket disconnected for session {session_id}")
+    
+    async def send_personal_message(self, message: dict, session_id: int):
+        """Send a message to all WebSocket connections for a specific session."""
+        if session_id in self.active_connections:
+            # Create a copy of the list to avoid modification during iteration
+            connections = list(self.active_connections[session_id])
+            for connection in connections:
+                try:
+                    await connection.send_text(json.dumps(message))
+                except Exception as e:
+                    logger.error(f"Error sending message to session {session_id}: {e}")
+                    # Remove broken connections
+                    self.disconnect(connection, session_id)
+
+
+# Global connection manager instance
+connection_manager = ConnectionManager()
+
 
 # Pomocnicza funkcja do ekstrakcji profilu klienta
 def extract_client_profile(client) -> dict:
@@ -84,6 +134,39 @@ async def stream_sales_analysis(user_input: str, client_profile: dict, session_h
     except Exception as e:
         logger.error(f"🔍 DEBUG: BŁĄD w stream_sales_analysis: {e}", exc_info=True)
         yield f"data: {{\"event\": \"error\", \"data\": \"{str(e)}\"}}\n\n"
+
+
+@router.websocket("/ws/{session_id}")
+async def websocket_endpoint(websocket: WebSocket, session_id: int):
+    """
+    WebSocket endpoint for real-time communication with the frontend.
+    """
+    # Validate session exists
+    # Note: We're not using database dependency injection here due to WebSocket limitations
+    # In a production environment, you might want to implement a more robust session validation
+    
+    try:
+        await connection_manager.connect(websocket, session_id)
+        
+        # Send connection acknowledgment
+        await websocket.send_text(json.dumps({
+            "event": "connected",
+            "session_id": session_id,
+            "message": "WebSocket connection established"
+        }))
+        
+        # Listen for messages
+        while True:
+            data = await websocket.receive_text()
+            # Echo message back for testing (can be removed in production)
+            # await websocket.send_text(f"Message received: {data}")
+            
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket, session_id)
+        logger.info(f"WebSocket disconnected for session {session_id}")
+    except Exception as e:
+        logger.error(f"Error in WebSocket connection for session {session_id}: {e}")
+        connection_manager.disconnect(websocket, session_id)
 
 
 @router.post(
@@ -153,7 +236,7 @@ async def stream_dojo_chat(
         session_history = []  # W DojoMessageCreate nie ma session_history
 
         analysis_generator = stream_sales_analysis(
-            user_input=request_data.content,
+            user_input=request_data.message,
             client_profile=client_profile,
             session_history=session_history,
             session_context={"session_type": "dojo_training"}

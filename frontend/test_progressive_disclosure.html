@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Progressive Disclosure</title>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .confidence-slider {
+            margin: 20px 0;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196f3;
+            cursor: pointer;
+        }
+        
+        .module {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease;
+        }
+        
+        .module.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .module.hidden {
+            display: none;
+        }
+        
+        .module h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        
+        .threshold-info {
+            font-size: 12px;
+            color: #666;
+            background: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .initial-message {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+            border: 2px dashed #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        .confidence-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196f3;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Progressive Disclosure - Test Mechanizmu</h1>
+        
+        <div class="confidence-slider">
+            <h3>Symulator Confidence Score</h3>
+            <div class="confidence-display" id="confidenceDisplay">0%</div>
+            <input type="range" min="0" max="100" value="0" class="slider" id="confidenceSlider">
+            <p>Przesuń suwak, aby symulować różne poziomy pewności analizy</p>
+        </div>
+        
+        <!-- Komunikat startowy -->
+        <div id="initialMessage" class="initial-message">
+            <h3>🚀 Rozpocznij rozmowę</h3>
+            <p>Analiza strategiczna uaktywni się automatycznie po pierwszych interakcjach z klientem.</p>
+        </div>
+        
+        <!-- Moduły Progressive Disclosure -->
+        <div id="strategicRecommendations" class="module hidden">
+            <h3>⚡ Rekomendacje Taktyczne</h3>
+            <div class="threshold-info">Próg: 20%</div>
+            <p>Strategiczne wskazówki i sugerowane odpowiedzi dla sprzedawcy.</p>
+        </div>
+        
+        <div id="customerArchetype" class="module hidden">
+            <h3>👤 Archetyp Klienta</h3>
+            <div class="threshold-info">Próg: 30%</div>
+            <p>Identyfikacja głównego archetypu klienta i stylu komunikacji.</p>
+        </div>
+        
+        <div id="psychometricAnalysis" class="module hidden">
+            <h3>🧠 Analiza Psychometryczna</h3>
+            <div class="threshold-info">Próg: 40%</div>
+            <p>Szczegółowa analiza Big Five, DISC i wartości Schwartza.</p>
+        </div>
+        
+        <div id="salesIndicators" class="module hidden">
+            <h3>📊 Wskaźniki Sprzedażowe</h3>
+            <div class="threshold-info">Próg: 60%</div>
+            <p>Temperatura zakupu, etap customer journey, ryzyko churn i potencjał sprzedaży.</p>
+        </div>
+        
+        <div id="knowledgeBase" class="module hidden">
+            <h3>💡 Baza Wiedzy</h3>
+            <div class="threshold-info">Próg: 70%</div>
+            <p>Kontekstowe wskazówki i najlepsze praktyki z bazy wiedzy.</p>
+        </div>
+        
+        <div id="fullProfile" class="module hidden">
+            <h3>🎯 Pełny Profil</h3>
+            <div class="threshold-info">Próg: 85%</div>
+            <p>Najbardziej zaawansowane moduły analityczne i predykcyjne.</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #f0f8ff; border-radius: 8px;">
+            <h4>📋 Status Modułów:</h4>
+            <div id="moduleStatus"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Progressive Disclosure Thresholds (zgodne z React komponentem)
+        const DISCLOSURE_THRESHOLDS = {
+            BASIC_INFO: 0,
+            STRATEGIC_RECOMMENDATIONS: 20,
+            CUSTOMER_ARCHETYPE: 30,
+            PSYCHOMETRIC_ANALYSIS: 40,
+            SALES_INDICATORS: 60,
+            KNOWLEDGE_BASE: 70,
+            FULL_PROFILE: 85
+        };
+        
+        const modules = [
+            { id: 'strategicRecommendations', threshold: DISCLOSURE_THRESHOLDS.STRATEGIC_RECOMMENDATIONS, name: 'Rekomendacje Taktyczne' },
+            { id: 'customerArchetype', threshold: DISCLOSURE_THRESHOLDS.CUSTOMER_ARCHETYPE, name: 'Archetyp Klienta' },
+            { id: 'psychometricAnalysis', threshold: DISCLOSURE_THRESHOLDS.PSYCHOMETRIC_ANALYSIS, name: 'Analiza Psychometryczna' },
+            { id: 'salesIndicators', threshold: DISCLOSURE_THRESHOLDS.SALES_INDICATORS, name: 'Wskaźniki Sprzedażowe' },
+            { id: 'knowledgeBase', threshold: DISCLOSURE_THRESHOLDS.KNOWLEDGE_BASE, name: 'Baza Wiedzy' },
+            { id: 'fullProfile', threshold: DISCLOSURE_THRESHOLDS.FULL_PROFILE, name: 'Pełny Profil' }
+        ];
+        
+        const slider = document.getElementById('confidenceSlider');
+        const display = document.getElementById('confidenceDisplay');
+        const initialMessage = document.getElementById('initialMessage');
+        const moduleStatus = document.getElementById('moduleStatus');
+        
+        function updateProgressiveDisclosure(confidenceScore) {
+            display.textContent = confidenceScore + '%';
+            
+            // Pokaż/ukryj komunikat startowy
+            if (confidenceScore === 0) {
+                initialMessage.style.display = 'block';
+            } else {
+                initialMessage.style.display = 'none';
+            }
+            
+            // Aktualizuj widoczność modułów
+            let statusHTML = '';
+            modules.forEach(module => {
+                const element = document.getElementById(module.id);
+                const shouldShow = confidenceScore >= module.threshold;
+                
+                if (shouldShow) {
+                    element.classList.remove('hidden');
+                    setTimeout(() => {
+                        element.classList.add('visible');
+                    }, 100);
+                    statusHTML += `<span style="color: green;">✅ ${module.name} (${module.threshold}%)</span><br>`;
+                } else {
+                    element.classList.remove('visible');
+                    element.classList.add('hidden');
+                    statusHTML += `<span style="color: #ccc;">⏳ ${module.name} (${module.threshold}%)</span><br>`;
+                }
+            });
+            
+            moduleStatus.innerHTML = statusHTML;
+        }
+        
+        slider.addEventListener('input', function() {
+            updateProgressiveDisclosure(parseInt(this.value));
+        });
+        
+        // Inicjalizacja
+        updateProgressiveDisclosure(0);
+        
+        // Demo automatyczne
+        let demoRunning = false;
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'd' || e.key === 'D') {
+                if (!demoRunning) {
+                    runDemo();
+                }
+            }
+        });
+        
+        function runDemo() {
+            demoRunning = true;
+            let currentValue = 0;
+            const interval = setInterval(() => {
+                currentValue += 5;
+                slider.value = currentValue;
+                updateProgressiveDisclosure(currentValue);
+                
+                if (currentValue >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        // Reset demo
+                        currentValue = 0;
+                        slider.value = 0;
+                        updateProgressiveDisclosure(0);
+                        demoRunning = false;
+                    }, 2000);
+                }
+            }, 300);
+        }
+        
+        // Dodaj instrukcję
+        const instruction = document.createElement('div');
+        instruction.innerHTML = '<p style="text-align: center; margin-top: 20px; color: #666; font-size: 14px;">💡 Naciśnij "D" aby uruchomić automatyczne demo</p>';
+        document.body.appendChild(instruction);
+    </script>
+</body>
+</html>

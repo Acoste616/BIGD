@@ -10,7 +10,9 @@ from datetime import datetime, timedelta
 import logging
 
 import ollama
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
+from ...repositories.prompt_template_repository import PromptTemplateRepository
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +28,12 @@ class BaseAIService:
     - Error handling i logging
     """
     
-    def __init__(self):
+    def __init__(self, session: AsyncSession):
         """Inicjalizacja bazowego serwisu AI"""
+        self.session = session
+        # Dodaj nową właściwość - instancję repozytorium
+        self.prompt_repo = PromptTemplateRepository(session)
+        
         # Konfiguracja Ollama Cloud
         headers = {}
         if settings.OLLAMA_API_KEY:

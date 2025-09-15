@@ -32,6 +32,9 @@ class Settings(BaseSettings):
         "postgresql://postgres:postgres@localhost:5432/sales_copilot"
     )
     
+    # Redis Cache
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379")
+    
     # Qdrant Vector Database
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))

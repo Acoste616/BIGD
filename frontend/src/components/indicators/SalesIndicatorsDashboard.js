@@ -57,7 +57,7 @@ const SalesIndicatorsDashboard = ({
     // Loading state
     if (loading) {
         return (
-            <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={1} sx={{ p: 3, mb: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                     <AnalyticsIcon sx={{ fontSize: 32, color: 'primary.main' }} />
                     <Box>
@@ -71,7 +71,7 @@ const SalesIndicatorsDashboard = ({
                 </Box>
 
                 {/* Loading Grid */}
-                <Grid container spacing={3}>
+                <Grid container spacing={3} sx={{ flexGrow: 1 }}>
                     {[1, 2, 3, 4].map((item) => (
                         <Grid item xs={12} md={6} key={item}>
                             <PurchaseTemperatureGauge loading={true} />
@@ -85,7 +85,7 @@ const SalesIndicatorsDashboard = ({
     // Error state
     if (error) {
         return (
-            <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={1} sx={{ p: 3, mb: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                     <AnalyticsIcon sx={{ fontSize: 32, color: 'error.main' }} />
                     <Box>
@@ -110,7 +110,7 @@ const SalesIndicatorsDashboard = ({
     // No data state
     if (!activeIndicatorsData) {
         return (
-            <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={1} sx={{ p: 3, mb: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                     <AnalyticsIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
                     <Box>
@@ -156,7 +156,7 @@ const SalesIndicatorsDashboard = ({
     const overallScore = calculateOverallScore();
 
     return (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={1} sx={{ p: 3, mb: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header z ogólnym wynikiem i archetypem */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -189,7 +189,7 @@ const SalesIndicatorsDashboard = ({
             </Box>
 
             {/* Grid wskaźników */}
-            <Grid container spacing={3}>
+            <Grid container spacing={3} sx={{ flexGrow: 1 }}>
                 {/* Temperatura Zakupowa */}
                 <Grid item xs={12} md={6}>
                     <PurchaseTemperatureGauge 

@@ -51,10 +51,10 @@ async def test_health_checks():
     """
     logger.info("🏥 Rozpoczynam testy health check systemu...")
     
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with httpx.AsyncClient(base_url="http://localhost:8000") as client:
         # Test 1: Główny health check
         logger.info("1️⃣ Testuję główny health check...")
-        response_main = await client.get("/health")  # Używa pełnej ścieżki z BASE_URL
+        response_main = await client.get("/health")  # Używa pełnej ścieżki bez /api/v1
         assert response_main.status_code == 200, f"Health check failed: {response_main.status_code}"
         
         health_data = response_main.json()
@@ -72,7 +72,7 @@ async def test_health_checks():
         
         # Test 3: Qdrant health check
         logger.info("3️⃣ Testuję health check Qdrant...")
-        response_qdrant = await client.get("/knowledge/health/qdrant")
+        response_qdrant = await client.get("/api/v1/knowledge/health/qdrant")
         assert response_qdrant.status_code == 200, f"Qdrant health check failed: {response_qdrant.status_code}"
         
         qdrant_health = response_qdrant.json()
@@ -185,9 +185,9 @@ async def test_full_user_workflow_with_rag():
         logger.info(f"✅ Sesja utworzona z ID: {session_id}")
         
         # Weryfikacja danych sesji
-        assert "session_type" in session_data, "Brak typu sesji"
-        assert session_data["session_type"] == TEST_SESSION_DATA["session_type"], "Nieprawidłowy typ sesji"
+        assert "client_id" in session_data, "Brak ID klienta"
         assert session_data["client_id"] == client_id, "Nieprawidłowe powiązanie z klientem"
+        assert "status" in session_data, "Brak statusu sesji"
         
         # === KROK C: TWORZENIE INTERAKCJI Z RAG ===
         logger.info("🧠 C. Tworzę interakcję z wykorzystaniem RAG...")

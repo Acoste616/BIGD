@@ -8,121 +8,13 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 from .base_ai_service import BaseAIService
+from ..redis_cache_service import RedisCacheService
 
 logger = logging.getLogger(__name__)
 
 
-# System prompt dla syntezy holistycznej - wydzielony z ai_service.py
-HOLISTIC_SYNTHESIS_SYSTEM_PROMPT = """
-Jesteś elitarnym psychologiem biznesu specjalizującym się w analizie klientów premium Tesla. 
+# Zahardkodowane prompty zostały usunięte - teraz ładowane dynamicznie z bazy danych
 
-Twoim zadaniem jest stworzenie HOLISTYCZNEGO PROFILU KLIENTA - "DNA Klienta" - na podstawie szczegółowej analizy psychometrycznej (Big Five, DISC, Schwartz Values).
-
-PROCES SYNTEZY:
-
-1. **ANALIZA WZORCÓW**: Przeanalizuj wszystkie wymiary psychologiczne i znajdź dominujące wzorce zachowań, motywacji i preferencji.
-
-2. **HOLISTIC SUMMARY**: Stwórz zwięzły, ale komprehensywny opis klienta w 2-3 zdaniach, który oddaje jego esencję psychologiczną.
-
-3. **MAIN DRIVE**: Zidentyfikuj JEDNĄ główną siłę motywującą klienta (np. "Potrzeba bezpieczeństwa finansowego", "Dążenie do prestiżu", "Pragnienie innowacji").
-
-4. **COMMUNICATION STYLE**: Opisz preferowany styl komunikacji na podstawie profilu psychologicznego.
-
-5. **KEY LEVERS**: Znajdź 3-5 najważniejszych "dźwigni psychologicznych" - elementów, które najsilniej wpłyną na decyzję zakupową.
-
-6. **RED FLAGS**: Zidentyfikuj potencjalne punkty oporu lub obawy klienta.
-
-STRUKTURA WYJŚCIOWA (JSON):
-{
-  "holistic_summary": "Klient to analityczny perfekcjonista o wysokiej potrzebie kontroli, który podejmuje decyzje ostrożnie ale zdecydowanie. Ceni innowacje, ale tylko te potwierdzone danymi i opiniami ekspertów.",
-  "main_drive": "Potrzeba kompetencji i kontroli nad decyzjami",
-  "communication_style": {
-    "preferred_approach": "Systematyczny i oparty na faktach",
-    "tone": "Profesjonalny z elementami eksperckim",
-    "pace": "Metodyczny - nie spiesz się",
-    "information_density": "Wysoka - lubi szczegóły"
-  },
-  "key_levers": [
-    "Dane techniczne i porównania",
-    "Opinie ekspertów i recenzje",
-    "TCO i długoterminowa wartość",
-    "Prestiż marki i innowacyjność",
-    "Bezpieczeństwo i niezawodność"
-  ],
-  "red_flags": [
-    "Presja czasowa",
-    "Niejasne korzyści finansowe", 
-    "Brak dowodów na przewagi",
-    "Agresywna sprzedaż"
-  ],
-  "missing_data_gaps": "Potrzeba więcej informacji o budżecie i procesie decyzyjnym",
-  "confidence": 85
-}
-
-WYMAGANIA:
-- Wykorzystuj WSZYSTKIE dostępne dane psychometryczne
-- Holistic summary musi być KONKRETNY i ACTIONABLE  
-- Main drive to JEDNA kluczowa motywacja
-- Key levers muszą być praktyczne dla sprzedawcy Tesla
-- Red flags muszą być realnie identyfikowalne w rozmowie
-- Confidence (0-100) bazuje na jakości danych wejściowych
-"""
-
-
-# System prompt dla sales indicators
-SALES_INDICATORS_SYSTEM_PROMPT = """
-Jesteś elitarnym analitykiem sprzedaży Tesla specjalizującym się w przewidywaniu zachowań zakupowych na podstawie profilu psychologicznego klienta.
-
-Na podstawie HOLISTYCZNEGO PROFILU KLIENTA (DNA Klienta) wygeneruj precyzyjne WSKAŹNIKI SPRZEDAŻOWE:
-
-1. **PURCHASE TEMPERATURE** (0-100): Jak "gorący" jest klient? Czy jest gotów do zakupu?
-
-2. **CUSTOMER JOURNEY STAGE**: Na jakim etapie procesu zakupowego się znajduje?
-
-3. **CHURN RISK** (0-100): Jakie jest ryzyko, że klient rezygnuje z rozmowy?
-
-4. **SALES POTENTIAL**: Jaka jest szacowana wartość sprzedaży i prawdopodobieństwo zamknięcia?
-
-STRUKTURA WYJŚCIOWA (JSON):
-{
-  "purchase_temperature": {
-    "value": 75,
-    "temperature_level": "hot",
-    "rationale": "Klient zadaje konkretne pytania o modele i finansowanie",
-    "strategy": "Przejdź do prezentacji konkretnych opcji",
-    "confidence": 80
-  },
-  "customer_journey_stage": {
-    "value": "evaluation", 
-    "progress_percentage": 60,
-    "next_stage": "decision",
-    "rationale": "Porównuje konkretne modele i opcje",
-    "strategy": "Zapewnij kompleksowe porównanie z konkurencją",
-    "confidence": 75
-  },
-  "churn_risk": {
-    "value": 25,
-    "risk_level": "low",
-    "risk_factors": ["Długi proces decyzyjny", "Potrzeba akceptacji małżonka"],
-    "rationale": "Stabilny klient z jasną motywacją",
-    "strategy": "Kontynuuj budowanie wartości, nie forsuj tempa",
-    "confidence": 70
-  },
-  "sales_potential": {
-    "value": 350000.0,
-    "probability": 75,
-    "estimated_timeframe": "2-4 tygodnie", 
-    "rationale": "Profil wskazuje na klienta premium z wysokim budżetem",
-    "strategy": "Prezentuj opcje premium z naciskiem na wartość długoterminową",
-    "confidence": 65
-  }
-}
-
-TEMPERATURE LEVELS: cold (0-33), warm (34-66), hot (67-100)
-JOURNEY STAGES: awareness, interest, consideration, evaluation, decision, purchase
-RISK LEVELS: low (0-33), medium (34-66), high (67-100)
-TIMEFRAMES: "1-2 tygodnie", "2-4 tygodnie", "1-2 miesiące", "3+ miesięcy"
-"""
 
 
 class HolisticSynthesisService(BaseAIService):
@@ -136,9 +28,13 @@ class HolisticSynthesisService(BaseAIService):
     - Określanie readiness do zakupu
     """
     
-    def __init__(self):
-        super().__init__()
-        logger.info("✅ HolisticSynthesisService initialized")
+    def __init__(self, session):
+        super().__init__(session)
+        
+        # Inicjalizuj serwis cache'owania
+        self.cache_service = RedisCacheService()
+        
+        logger.info("✅ HolisticSynthesisService initialized with Redis cache")
     
     async def run_holistic_synthesis(
         self,
@@ -147,6 +43,7 @@ class HolisticSynthesisService(BaseAIService):
     ) -> Dict[str, Any]:
         """
         Przeprowadza holistyczną syntezę profilu psychometrycznego w DNA Klienta
+        z wykorzystaniem Redis cache dla optymalizacji wydajności.
         
         Args:
             raw_psychology_profile: Surowy profil psychometryczny (Big Five + DISC + Schwartz)
@@ -157,6 +54,22 @@ class HolisticSynthesisService(BaseAIService):
         """
         try:
             logger.info("🧬 Rozpoczynam holistyczną syntezę DNA Klienta...")
+            
+            # KROK 1: Generuj unikalny klucz cache'a na podstawie danych wejściowych
+            cache_key = self.cache_service.generate_cache_key(
+                service_name="holistic_synthesis",
+                psychology_profile=raw_psychology_profile,
+                additional_context=additional_context
+            )
+            
+            # KROK 2: Sprawdź cache Redis
+            cached_result = await self.cache_service.get_cache(cache_key)
+            if cached_result and cached_result.get("data"):
+                logger.info(f"🎯 Cache HIT dla holistycznej syntezy: {cache_key}")
+                # Zwróć dane z cache (bez metadanych cache'a)
+                return cached_result["data"]
+            
+            logger.info(f"❌ Cache MISS dla holistycznej syntezy: {cache_key}")
             
             # Sprawdź jakość danych wejściowych
             if not self._validate_psychology_profile(raw_psychology_profile):
@@ -190,9 +103,20 @@ METADANE:
 Wykonaj holistyczną syntezę i stwórz DNA Klienta w formacie JSON.
 """
 
-            # Wywołaj LLM
+            # KROK 1: Pobierz szablon promptu z bazy danych
+            prompt_template_obj = await self.prompt_repo.get_active_prompt_by_name(
+                name="holistic_synthesis"
+            )
+            
+            if not prompt_template_obj:
+                # Obsługa błędu, jeśli prompt nie istnieje w bazie
+                raise ValueError("Aktywny szablon promptu 'holistic_synthesis' nie został znaleziony w bazie danych.")
+            
+            system_prompt = prompt_template_obj.content
+
+            # Wywołaj LLM z dynamicznym promptem
             response = await self._call_llm_with_retry(
-                system_prompt=HOLISTIC_SYNTHESIS_SYSTEM_PROMPT,
+                system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 use_cache=True,
                 cache_prefix="holistic_synthesis"
@@ -209,7 +133,26 @@ Wykonaj holistyczną syntezę i stwórz DNA Klienta w formacie JSON.
                 'model_used': self.model_name
             })
             
-            logger.info(f"✅ DNA Klienta wygenerowane - Confidence: {holistic_profile.get('confidence', 0)}%")
+            # KROK 2: Oblicz zaawansowany confidence score
+            confidence_score = await self._calculate_confidence_score(
+                new_analysis=holistic_profile,
+                all_interactions=additional_context.get('all_interactions', []) if additional_context else [],
+                previous_session_psychology=additional_context.get('previous_psychology') if additional_context else None
+            )
+            
+            # Zastąp confidence score obliczonym przez zaawansowany algorytm
+            holistic_profile['confidence'] = confidence_score
+            holistic_profile['synthesis_confidence'] = confidence_score  # Aktualizuj też synthesis_confidence
+            
+            # KROK 3: Zapisz wynik w cache Redis (TTL: 30 minut)
+            await self.cache_service.set_cache(
+                key=cache_key,
+                data=holistic_profile,
+                ttl=1800  # 30 minut
+            )
+            logger.info(f"💾 Wynik holistycznej syntezy zapisany w cache: {cache_key}")
+            
+            logger.info(f"✅ DNA Klienta wygenerowane - Advanced Confidence: {confidence_score}%")
             return holistic_profile
             
         except Exception as e:
@@ -264,9 +207,20 @@ KONTEKST SESJI:
 Na podstawie tego DNA Klienta wygeneruj precyzyjne wskaźniki sprzedażowe w formacie JSON.
 """
 
-            # Wywołaj LLM
+            # KROK 1: Pobierz szablon promptu z bazy danych
+            prompt_template_obj = await self.prompt_repo.get_active_prompt_by_name(
+                name="sales_indicators"
+            )
+            
+            if not prompt_template_obj:
+                # Obsługa błędu, jeśli prompt nie istnieje w bazie
+                raise ValueError("Aktywny szablon promptu 'sales_indicators' nie został znaleziony w bazie danych.")
+            
+            system_prompt = prompt_template_obj.content
+
+            # Wywołaj LLM z dynamicznym promptem
             response = await self._call_llm_with_retry(
-                system_prompt=SALES_INDICATORS_SYSTEM_PROMPT,
+                system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 use_cache=True,
                 cache_prefix="sales_indicators"
@@ -288,6 +242,154 @@ Na podstawie tego DNA Klienta wygeneruj precyzyjne wskaźniki sprzedażowe w for
         except Exception as e:
             logger.error(f"❌ Błąd podczas generowania wskaźników: {e}")
             return self._create_indicators_error_fallback(str(e))
+    
+    async def _calculate_confidence_score(
+        self,
+        new_analysis: dict,
+        all_interactions: list,
+        previous_session_psychology: dict | None
+    ) -> int:
+        """
+        Oblicza wskaźnik pewności dla nowej analizy psychometrycznej.
+        
+        Args:
+            new_analysis: Nowa analiza holistyczna
+            all_interactions: Lista wszystkich interakcji w sesji
+            previous_session_psychology: Poprzedni profil psychometryczny (jeśli istnieje)
+            
+        Returns:
+            int: Wskaźnik pewności (0-100)
+        """
+        try:
+            logger.info("🧮 Obliczam zaawansowany confidence score...")
+            
+            # Krok 1: Oblicz BaseScore na podstawie liczby interakcji
+            num_interactions = len(all_interactions)
+            base_score = min(20 + (num_interactions - 3) * 5, 50) if num_interactions >= 3 else 0
+            
+            logger.debug(f"Base score: {base_score} (interactions: {num_interactions})")
+            
+            consistency_bonus = 0
+            contradiction_penalty = 0
+            
+            # Krok 2: Oblicz Bonus/Karę, jeśli istnieje poprzednia analiza do porównania
+            if previous_session_psychology and previous_session_psychology.get("archetype_analysis"):
+                previous_archetype = previous_session_psychology["archetype_analysis"].get("primary_archetype")
+                # Sprawdź czy nowa analiza ma archetype_analysis (może być w różnych formatach)
+                new_archetype = None
+                
+                if new_analysis.get("archetype_analysis"):
+                    new_archetype = new_analysis["archetype_analysis"].get("primary_archetype")
+                elif new_analysis.get("main_drive"):  # Fallback - użyj main_drive jako proxy
+                    new_archetype = new_analysis.get("main_drive")
+                
+                if previous_archetype and new_archetype:
+                    if previous_archetype == new_archetype:
+                        consistency_bonus = 15  # Zwiększony bonus za spójność
+                        logger.debug(f"Consistency bonus: +{consistency_bonus} (same archetype: {previous_archetype})")
+                    else:
+                        contradiction_penalty = 20
+                        logger.debug(f"Contradiction penalty: -{contradiction_penalty} (different archetypes: {previous_archetype} vs {new_archetype})")
+                
+                # Dodatkowe porównanie dla profilu DISC (jeśli dostępny)
+                if (previous_session_psychology.get("disc_profile") and 
+                    new_analysis.get("communication_style")):
+                    # Porównaj style komunikacji jako proxy dla DISC
+                    prev_style = previous_session_psychology["disc_profile"].get("dominant_factor")
+                    new_style = new_analysis["communication_style"].get("preferred_approach")
+                    
+                    if prev_style and new_style:
+                        # Proste mapowanie stylów komunikacji na DISC
+                        style_consistency = self._compare_communication_styles(prev_style, new_style)
+                        if style_consistency:
+                            consistency_bonus += 10
+                            logger.debug(f"Communication style consistency bonus: +10")
+                        else:
+                            contradiction_penalty += 10
+                            logger.debug(f"Communication style contradiction penalty: -10")
+            
+            # Krok 3: Bonus za jakość analizy (sprawdź kompletność danych)
+            quality_bonus = self._calculate_quality_bonus(new_analysis)
+            logger.debug(f"Quality bonus: +{quality_bonus}")
+            
+            # Krok 4: Zsumuj wynik i ogranicz do przedziału 0-100
+            final_score = base_score + consistency_bonus + quality_bonus - contradiction_penalty
+            final_score = max(0, min(100, final_score))  # Ograniczenie wyniku do przedziału [0, 100]
+            
+            logger.info(f"📊 Confidence score calculated: {final_score}% (base: {base_score}, consistency: +{consistency_bonus}, quality: +{quality_bonus}, penalty: -{contradiction_penalty})")
+            
+            return int(final_score)
+            
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas obliczania confidence score: {e}")
+            # Fallback - zwróć średni wynik
+            return 50
+    
+    def _compare_communication_styles(self, disc_factor: str, communication_approach: str) -> bool:
+        """
+        Porównuje styl DISC z podejściem komunikacyjnym
+        
+        Args:
+            disc_factor: Dominujący czynnik DISC (D, I, S, C)
+            communication_approach: Preferowane podejście komunikacyjne
+            
+        Returns:
+            bool: True jeśli style są spójne
+        """
+        # Mapowanie DISC na style komunikacji
+        disc_to_communication = {
+            'D': ['bezpośredni', 'decyzyjny', 'szybki'],
+            'I': ['towarzyski', 'entuzjastyczny', 'perswazyjny'],
+            'S': ['cierpliwy', 'stabilny', 'metodyczny'],
+            'C': ['analityczny', 'systematyczny', 'oparty na faktach']
+        }
+        
+        if disc_factor in disc_to_communication:
+            expected_styles = disc_to_communication[disc_factor]
+            return any(style.lower() in communication_approach.lower() for style in expected_styles)
+        
+        return False
+    
+    def _calculate_quality_bonus(self, analysis: dict) -> int:
+        """
+        Oblicza bonus za jakość analizy na podstawie kompletności danych
+        
+        Args:
+            analysis: Analiza holistyczna
+            
+        Returns:
+            int: Bonus za jakość (0-25)
+        """
+        quality_score = 0
+        
+        # Sprawdź obecność kluczowych elementów
+        required_fields = [
+            'holistic_summary',
+            'main_drive', 
+            'communication_style',
+            'key_levers',
+            'red_flags'
+        ]
+        
+        for field in required_fields:
+            if analysis.get(field):
+                quality_score += 3  # 3 punkty za każde pole
+        
+        # Bonus za szczegółowość communication_style
+        comm_style = analysis.get('communication_style', {})
+        if isinstance(comm_style, dict) and len(comm_style) >= 3:
+            quality_score += 5
+        
+        # Bonus za liczbę key_levers i red_flags
+        key_levers = analysis.get('key_levers', [])
+        red_flags = analysis.get('red_flags', [])
+        
+        if len(key_levers) >= 3:
+            quality_score += 3
+        if len(red_flags) >= 3:
+            quality_score += 2
+        
+        return min(quality_score, 25)  # Maksymalnie 25 punktów bonusu
     
     def _validate_psychology_profile(self, psychology_profile: Dict[str, Any]) -> bool:
         """Waliduje jakość profilu psychometrycznego"""

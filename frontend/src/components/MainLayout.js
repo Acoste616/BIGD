@@ -73,6 +73,12 @@ const menuItems = [
     badge: { content: 'MODUŁ 3', color: 'secondary' },
   },
   {
+    text: 'AI Dojo',
+    icon: <SchoolIcon />,
+    path: '/dojo',
+    badge: { content: 'NOWY', color: 'success' },
+  },
+  {
     text: 'Ustawienia',
     icon: <SettingsIcon />,
     path: '/settings',

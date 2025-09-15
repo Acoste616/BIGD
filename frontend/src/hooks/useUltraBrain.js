@@ -264,6 +264,7 @@ export const useUltraBrain = (interactionId, options = {}) => {
         isStrategiaReady: ultraBrainData.strategiaReady,
         isUltraBrainReady: ultraBrainData.dnaReady && ultraBrainData.strategiaReady,
         confidence: ultraBrainData.dnaConfidence,
+        confidenceScore: ultraBrainData.dnaConfidence, // Alias dla Progressive Disclosure
         
         // 🔧 BLUEPRINT v4.1: Enhanced loading states
         loading,

@@ -25,15 +25,19 @@ const PsychometricDashboard = ({
     onClarificationAnswered = null,
     // 🧠⚡ ULTRA MÓZG v4.0: NOWE PROPSY
     surowePsychology = null,  // Surowe dane z Ultra Mózgu
-    isUltraBrainReady = false // Czy Ultra Mózg ma dane gotowe
+    isUltraBrainReady = false, // Czy Ultra Mózg ma dane gotowe
+    // NOWE PROPSY DLA INTEGRACJI Z SESJĄ
+    sessionId = null,
+    psychometricsData = null,
+    psychometricsLoading = false
 }) => {
     const [submitting, setSubmitting] = useState(false);
     
     // Stan ładowania
-    if (loading) {
+    if (loading || psychometricsLoading) {
         return (
-            <Card>
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ textAlign: 'center', py: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <PsychologyIcon sx={{ fontSize: 48, mb: 2, color: 'primary.main' }} />
                     <Typography variant="h6" gutterBottom>
                         Analiza Psychometryczna w Toku...
@@ -50,7 +54,16 @@ const PsychometricDashboard = ({
     // Priorytetyzuj surowe dane z Ultra Mózgu nad legacy analysisData
     let activePsychology, isUsingUltraBrain;
     
-    if (isUltraBrainReady && surowePsychology) {
+    // Jeśli mamy dane z nowego endpointu, użyj ich
+    if (psychometricsData) {
+        activePsychology = {
+            big_five: psychometricsData.big_five,
+            disc: psychometricsData.disc_profile,
+            schwartz_values: psychometricsData.schwartz_values
+        };
+        isUsingUltraBrain = true;
+        console.log('🧠⚡ [PSYCHOMETRIC DASHBOARD] Używam danych z nowego endpointu:', psychometricsData);
+    } else if (isUltraBrainReady && surowePsychology) {
         // ULTRA MÓZG: Używamy surowych danych psychology
         activePsychology = surowePsychology;
         isUsingUltraBrain = true;
@@ -71,10 +84,10 @@ const PsychometricDashboard = ({
     console.log('PsychometricDashboard - has schwartz:', !!activePsychology?.schwartz_values);
 
     // Brak danych (legacy lub Ultra Mózg)
-    if (!analysisData && !isUsingUltraBrain) {
+    if (!analysisData && !isUsingUltraBrain && !psychometricsData) {
         return (
-            <Card>
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ textAlign: 'center', py: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <PsychologyIcon sx={{ fontSize: 48, mb: 2, color: 'text.secondary' }} />
                     <Typography variant="h6" gutterBottom color="text.secondary">
                         Profil Psychometryczny
@@ -132,7 +145,7 @@ const PsychometricDashboard = ({
 
     if (needsClarification && clarifyingQuestions.length > 0) {
         return (
-            <Box>
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <ClarifyingQuestions
                     questions={clarifyingQuestions}
                     interactionId={interactionId}
@@ -145,8 +158,8 @@ const PsychometricDashboard = ({
 
     if (!hasBigFive && !hasDisc && !hasSchwartz) {
         return (
-            <Card>
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ textAlign: 'center', py: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <PsychologyIcon sx={{ fontSize: 48, mb: 2, color: 'warning.main' }} />
                     <Typography variant="h6" gutterBottom color="text.secondary">
                         Profil Psychometryczny
@@ -182,7 +195,7 @@ const PsychometricDashboard = ({
 
     // Główny dashboard z analizą
     return (
-        <Box>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header z Ultra Mózg Badge */}
             <Paper elevation={1} sx={{ p: 2, mb: 3, bgcolor: 'primary.main', color: 'primary.contrastText', position: 'relative' }}>
                 <Box display="flex" alignItems="center" gap={2}>
@@ -193,7 +206,7 @@ const PsychometricDashboard = ({
                         </Typography>
                         <Typography variant="body2" sx={{ opacity: 0.9 }}>
                             {isUsingUltraBrain ? 
-                                '🧠⚡ Ultra Mózg: Big Five • DISC • Wartości Schwartza' :
+                                '🧠⚡ Ultra MóZG: Big Five • DISC • Wartości Schwartza' :
                                 'Analiza AI: Big Five • DISC • Wartości Schwartza'
                             }
                         </Typography>
@@ -215,22 +228,38 @@ const PsychometricDashboard = ({
                         </Box>
                     )}
                 </Box>
+                
+                {/* Wyświetlanie confidence score i podsumowania jeśli dostępne */}
+                {(psychometricsData?.confidence_score || analysisData?.psychology_confidence) && (
+                    <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1 }}>
+                        <Typography variant="body2">
+                            🔍 Pewność analizy: <strong>{psychometricsData?.confidence_score || analysisData?.psychology_confidence}%</strong>
+                        </Typography>
+                        {psychometricsData?.summary && (
+                            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                📝 {psychometricsData.summary}
+                            </Typography>
+                        )}
+                    </Box>
+                )}
             </Paper>
 
             {/* ✅ GŁÓWNE SEKCJE ANALIZY - Z WARUNKAMI RENDERINGU */}
-            <Grid container spacing={3}>
+            <Grid container spacing={3} sx={{ flexGrow: 1, overflow: 'auto' }}>
                 {/* Big Five Radar Chart */}
                 {hasBigFive && (
                     <Grid item xs={12} md={6}>
-                        <Card elevation={2}>
-                            <CardContent>
+                        <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     📊 Model Big Five
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                     Pięć głównych wymiarów osobowości
                                 </Typography>
-                                <BigFiveRadarChart data={activePsychology?.big_five} />
+                                <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <BigFiveRadarChart data={activePsychology?.big_five} />
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -239,15 +268,17 @@ const PsychometricDashboard = ({
                 {/* DISC Profile */}
                 {hasDisc && (
                     <Grid item xs={12} md={6}>
-                        <Card elevation={2}>
-                            <CardContent>
+                        <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     🎭 Profil DISC
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                     Style zachowania i komunikacji
                                 </Typography>
-                                <DiscProfileDisplay data={activePsychology?.disc} />
+                                <Box sx={{ flexGrow: 1 }}>
+                                    <DiscProfileDisplay data={activePsychology?.disc} />
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -256,15 +287,17 @@ const PsychometricDashboard = ({
                 {/* Schwartz Values */}
                 {hasSchwartz && (
                     <Grid item xs={12}>
-                        <Card elevation={2}>
-                            <CardContent>
+                        <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     💎 Wartości Schwartza
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                     Kluczowe motywacje i systemy wartości klienta
                                 </Typography>
-                                <SchwartzValuesList data={activePsychology?.schwartz_values} />
+                                <Box sx={{ flexGrow: 1 }}>
+                                    <SchwartzValuesList data={activePsychology?.schwartz_values} />
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>

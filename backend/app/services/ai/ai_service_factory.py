@@ -1,10 +1,9 @@
-"""
-AIServiceFactory - Factory Pattern dla serwisów AI
+"""AIServiceFactory - Factory Pattern dla serwisów AI
 Odpowiedzialny za: dependency injection, inicjalizację, zarządzanie zależnościami
 """
 import logging
 from typing import Optional
-from functools import lru_cache
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .base_ai_service import BaseAIService
 from .psychology_service import PsychologyService
@@ -17,13 +16,11 @@ logger = logging.getLogger(__name__)
 
 class AIServiceFactory:
     """
-    Factory do tworzenia i zarządzania serwisami AI.
+    Factory do tworzenia serwisów AI z dependency injection.
     
-    Implementuje wzorzec Singleton dla każdego typu serwisu
-    i zapewnia czyste dependency injection.
+    Każdy serwis wymaga AsyncSession, więc nie używamy singletonów.
     """
     
-    _instances = {}
     _qdrant_service = None
     
     @classmethod
@@ -33,66 +30,59 @@ class AIServiceFactory:
         logger.info("✅ QdrantService zarejestrowany w AIServiceFactory")
     
     @classmethod
-    @lru_cache(maxsize=1)
-    def get_base_ai_service(cls) -> BaseAIService:
+    def get_base_ai_service(cls, session: AsyncSession) -> BaseAIService:
         """
-        Zwraca singleton instancję BaseAIService
+        Tworzy nową instancję BaseAIService
         
+        Args:
+            session: AsyncSession dla bazy danych
+            
         Returns:
             BaseAIService: Bazowy serwis AI
         """
-        if 'base' not in cls._instances:
-            cls._instances['base'] = BaseAIService()
-            logger.info("✅ BaseAIService created")
-        
-        return cls._instances['base']
+        return BaseAIService(session)
     
     @classmethod
-    @lru_cache(maxsize=1)
-    def get_psychology_service(cls) -> PsychologyService:
+    def get_psychology_service(cls, session: AsyncSession) -> PsychologyService:
         """
-        Zwraca singleton instancję PsychologyService
+        Tworzy nową instancję PsychologyService
         
+        Args:
+            session: AsyncSession dla bazy danych
+            
         Returns:
             PsychologyService: Serwis analizy psychometrycznej
         """
-        if 'psychology' not in cls._instances:
-            cls._instances['psychology'] = PsychologyService()
-            logger.info("✅ PsychologyService created")
-        
-        return cls._instances['psychology']
+        return PsychologyService(session)
     
     @classmethod
-    @lru_cache(maxsize=1)
-    def get_sales_strategy_service(cls) -> SalesStrategyService:
+    def get_sales_strategy_service(cls, session: AsyncSession) -> SalesStrategyService:
         """
-        Zwraca singleton instancję SalesStrategyService
+        Tworzy nową instancję SalesStrategyService
         
+        Args:
+            session: AsyncSession dla bazy danych
+            
         Returns:
             SalesStrategyService: Serwis strategii sprzedażowych
         """
-        if 'sales_strategy' not in cls._instances:
-            cls._instances['sales_strategy'] = SalesStrategyService(
-                qdrant_service=cls._qdrant_service
-            )
-            logger.info("✅ SalesStrategyService created")
-        
-        return cls._instances['sales_strategy']
+        return SalesStrategyService(
+            session=session,
+            qdrant_service=cls._qdrant_service
+        )
     
     @classmethod
-    @lru_cache(maxsize=1)
-    def get_holistic_synthesis_service(cls) -> HolisticSynthesisService:
+    def get_holistic_synthesis_service(cls, session: AsyncSession) -> HolisticSynthesisService:
         """
-        Zwraca singleton instancję HolisticSynthesisService
+        Tworzy nową instancję HolisticSynthesisService
         
+        Args:
+            session: AsyncSession dla bazy danych
+            
         Returns:
             HolisticSynthesisService: Serwis syntezy holistycznej
         """
-        if 'holistic_synthesis' not in cls._instances:
-            cls._instances['holistic_synthesis'] = HolisticSynthesisService()
-            logger.info("✅ HolisticSynthesisService created")
-        
-        return cls._instances['holistic_synthesis']
+        return HolisticSynthesisService(session)
     
     @classmethod
     def get_all_services(cls) -> dict:
@@ -200,19 +190,19 @@ class AIServiceFactory:
 
 # Funkcje pomocnicze dla łatwego użytkowania w kodzie
 
-def get_psychology_service() -> PsychologyService:
+def get_psychology_service(session: AsyncSession) -> PsychologyService:
     """Shortcut do pobrania PsychologyService"""
-    return AIServiceFactory.get_psychology_service()
+    return AIServiceFactory.get_psychology_service(session)
 
 
-def get_sales_strategy_service() -> SalesStrategyService:
+def get_sales_strategy_service(session: AsyncSession) -> SalesStrategyService:
     """Shortcut do pobrania SalesStrategyService"""
-    return AIServiceFactory.get_sales_strategy_service()
+    return AIServiceFactory.get_sales_strategy_service(session)
 
 
-def get_holistic_synthesis_service() -> HolisticSynthesisService:
+def get_holistic_synthesis_service(session: AsyncSession) -> HolisticSynthesisService:
     """Shortcut do pobrania HolisticSynthesisService"""
-    return AIServiceFactory.get_holistic_synthesis_service()
+    return AIServiceFactory.get_holistic_synthesis_service(session)
 
 
 # Dependency injection helper

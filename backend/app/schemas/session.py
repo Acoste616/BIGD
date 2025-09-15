@@ -18,6 +18,14 @@ class SessionUpdate(SessionBase):
 class SessionEnd(SessionBase):
     pass
 
+# Add the new SessionConclusion schema
+class SessionConclusion(BaseModel):
+    outcome: str
+    notes: Optional[str] = None
+    summary: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class Session(SessionBase):
     id: int
     client_id: int

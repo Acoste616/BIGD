@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Tooltip, Chip } from '@mui/material';
+import { Box, IconButton, Tooltip, Chip, CircularProgress } from '@mui/material';
 import { ThumbUp, ThumbDown, CheckCircle } from '@mui/icons-material';
 import { feedbackApi } from '../services';
 
@@ -15,6 +15,7 @@ const FeedbackButtons = ({
 }) => {
   const [feedback, setFeedback] = useState(null); // null, 1, -1
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleFeedback = async (score) => {
     if (loading || feedback === score) return;
@@ -31,16 +32,33 @@ const FeedbackButtons = ({
       await feedbackApi.createFeedback(interactionId, feedbackData);
       setFeedback(score);
       
+      // Show success message
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      
       if (onFeedbackSent) {
         onFeedbackSent(suggestionId, score);
       }
       
     } catch (error) {
       console.error('❌ Błąd podczas wysyłania feedback:', error);
+      // Show error message
     } finally {
       setLoading(false);
     }
   };
+
+  if (showSuccess) {
+    return (
+      <Chip
+        icon={<CheckCircle />}
+        label="Dziękujemy, uczę się!"
+        color="success"
+        size="small"
+        variant="filled"
+      />
+    );
+  }
 
   if (feedback !== null) {
     return (
@@ -83,6 +101,8 @@ const FeedbackButtons = ({
           <ThumbDown fontSize="small" />
         </IconButton>
       </Tooltip>
+      
+      {loading && <CircularProgress size={20} />}
     </Box>
   );
 };

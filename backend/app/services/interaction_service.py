@@ -29,6 +29,11 @@ from app.services.ai import (
     get_holistic_synthesis_service,
     check_ai_services_health
 )
+from app.services.ai.semantic_validator_service import SemanticValidatorService
+from app.services.redis_cache_service import RedisCacheService
+
+# Import ConnectionManager from stream module for WebSocket notifications
+from app.routers.stream import connection_manager
 
 # Fallback - import starego ai_service jeśli potrzebny
 from app.services.ai_service import generate_sales_analysis, ai_service
@@ -54,12 +59,27 @@ class InteractionService:
         # Repository dla operacji DB
         self.interaction_repo = InteractionRepository()
         
-        # Wyspecjalizowane serwisy AI (przez factory)
-        self.psychology_service = get_psychology_service()
-        self.sales_strategy_service = get_sales_strategy_service()
-        self.holistic_service = get_holistic_synthesis_service()
+        # Serwisy AI będą inicjalizowane z sesją DB gdy będą potrzebne
+        self.psychology_service = None
+        self.sales_strategy_service = None
+        self.holistic_service = None
         
-        logger.info("✅ InteractionService initialized with specialized AI services")
+        # Serwis walidacji semantycznej (bezstanowy)
+        self.semantic_validator = SemanticValidatorService()
+        
+        # Serwis cache'owania Redis
+        self.cache_service = RedisCacheService()
+        
+        logger.info("✅ InteractionService initialized with semantic validator + Redis cache")
+    
+    def _initialize_ai_services(self, db_session: AsyncSession):
+        """Inicjalizuje serwisy AI z sesją bazy danych"""
+        if not self.psychology_service:
+            self.psychology_service = get_psychology_service(db_session)
+        if not self.sales_strategy_service:
+            self.sales_strategy_service = get_sales_strategy_service(db_session)
+        if not self.holistic_service:
+            self.holistic_service = get_holistic_synthesis_service(db_session)
     
     # === MAIN BUSINESS METHODS ===
     
@@ -84,6 +104,9 @@ class InteractionService:
         """
         try:
             logger.info(f"🚀 [INTERACTION SERVICE] Tworzenie interakcji dla sesji {session_id}")
+            
+            # KROK 0: Inicjalizuj serwisy AI z sesją DB
+            self._initialize_ai_services(db)
             
             # KROK 1: Pobierz kontekst (session + client)
             session_context = await self._get_session_context(db, session_id)
@@ -122,6 +145,15 @@ class InteractionService:
             await db.flush()
             await db.refresh(db_interaction)
             created_interaction = db_interaction
+            
+            # KROK 7: Inwalidacja cache'a - nowa interakcja wymaga przeliczenia profili
+            cache_pattern = f"*session:{session_id}*"
+            invalidated_keys = await self.cache_service.invalidate_pattern(cache_pattern)
+            if invalidated_keys > 0:
+                logger.info(f"🗑️ [CACHE INVALIDATION] Unieważniono {invalidated_keys} kluczy cache dla sesji {session_id}")
+            
+            # KROK 8: Notify WebSocket clients about the new analysis
+            await self._notify_websocket_clients(session_id, created_interaction)
             
             logger.info(f"✅ [INTERACTION SERVICE] Interakcja {created_interaction.id} utworzona z AI analysis")
             return created_interaction
@@ -205,6 +237,17 @@ class InteractionService:
             psychology_confidence = updated_psychology_profile.get('psychology_confidence', 0)
             logger.info(f"✅ [STEP 1] Psychology gotowe! Confidence: {psychology_confidence}%")
             
+            # === KROK 1.5: SEMANTIC VALIDATION - PSYCHOLOGY PROFILE ===
+            logger.info(f"🔍 [STEP 1.5] Semantic Validation - Psychology Profile")
+            is_psychology_valid, psychology_error = self.semantic_validator.validate_psychology_profile(updated_psychology_profile)
+            
+            if not is_psychology_valid:
+                logger.warning(f"⚠️ [STEP 1.5] Psychology validation warning: {psychology_error}")
+                # Dla profilu psychometrycznego używamy ostrzeżenia zamiast błędu krytycznego
+                # Pozwalamy kontynuować, ale logujemy problem
+            else:
+                logger.info(f"✅ [STEP 1.5] Psychology validation passed!")
+            
             # === KROK 2: HOLISTIC SYNTHESIS (DNA Klienta) ===
             logger.info(f"🧬 [STEP 2] Holistic Synthesis - DNA Klienta")
             holistic_profile = await self.holistic_service.run_holistic_synthesis(
@@ -216,6 +259,26 @@ class InteractionService:
             )
             main_drive = holistic_profile.get('main_drive', 'Unknown')
             logger.info(f"✅ [STEP 2] DNA Klienta gotowe! Drive: {main_drive}")
+            
+            # === KROK 2.5: SEMANTIC VALIDATION ===
+            logger.info(f"🔍 [STEP 2.5] Semantic Validation - DNA Klienta")
+            is_valid, error_message = self.semantic_validator.validate_holistic_synthesis(holistic_profile)
+            
+            if not is_valid:
+                # Jeśli walidacja zawiedzie, logujemy błąd i przerywamy operację,
+                # aby nie zapisać "halucynacji" do bazy.
+                error_msg = f"AI response failed semantic validation: {error_message}"
+                logger.error(f"❌ [STEP 2.5] Semantic validation failed: {error_message}")
+                
+                # W przyszłości można tu zaimplementować ponowienie zapytania do AI
+                # Na razie rzucamy wyjątek, aby zatrzymać dalsze przetwarzanie
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=500,
+                    detail=error_msg
+                )
+            
+            logger.info(f"✅ [STEP 2.5] Semantic validation passed!")
             
             # === KROK 3: PARALLEL PROCESSING - DB Save + Sales Indicators ===
             logger.info(f"🔬 [STEP 3] Parallel: DB Save + Sales Indicators")
@@ -349,6 +412,23 @@ class InteractionService:
             getattr(interaction_data, 'clarifying_answer', None)
         )
     
+    async def _notify_websocket_clients(self, session_id: int, interaction_data: Dict[str, Any]):
+        """Notify WebSocket clients about new AI analysis"""
+        try:
+            message = {
+                "event": "analysis_complete",
+                "session_id": session_id,
+                "data": {
+                    "interaction_id": interaction_data.get("id"),
+                    "ai_response": interaction_data.get("ai_response_json", {})
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            await connection_manager.send_personal_message(message, session_id)
+            logger.info(f"📤 WebSocket notification sent for session {session_id}")
+        except Exception as e:
+            logger.error(f"❌ Error sending WebSocket notification for session {session_id}: {e}")
+    
     def _create_ai_fallback(self, error_message: str = "") -> Dict[str, Any]:
         """Tworzy fallback AI response gdy pipeline fails"""
         return {
@@ -380,6 +460,8 @@ class InteractionService:
             db.add(db_interaction)
             await db.flush()
             await db.refresh(db_interaction)
+            # Notify WebSocket clients even for fallback interactions
+            await self._notify_websocket_clients(session_id, db_interaction.__dict__)
             return db_interaction
         except Exception as e:
             logger.error(f"❌ Even fallback interaction failed: {e}")

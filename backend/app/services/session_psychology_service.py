@@ -87,7 +87,99 @@ class SessionPsychologyEngine:
         }
     }
 
-
+    def _merge_psychological_profiles(self, existing_profile: dict, new_analysis: dict) -> dict:
+        """
+        Merge new psychometric analysis with existing cumulative profile.
+        
+        Args:
+            existing_profile: Current cumulative psychology profile
+            new_analysis: New analysis to be merged
+            
+        Returns:
+            dict: Merged psychology profile with averaged numerical values and updated categorical data
+        """
+        if not existing_profile:
+            return new_analysis.copy() if new_analysis else {}
+            
+        if not new_analysis:
+            return existing_profile.copy()
+        
+        # Create a copy of the existing profile to avoid modifying the original
+        merged_profile = existing_profile.copy()
+        
+        try:
+            # Merge Big Five traits
+            if "big_five" in new_analysis and new_analysis["big_five"]:
+                if "big_five" not in merged_profile:
+                    merged_profile["big_five"] = {}
+                
+                for trait_name, trait_data in new_analysis["big_five"].items():
+                    if trait_name in merged_profile["big_five"] and merged_profile["big_five"][trait_name]:
+                        # Average the scores with appropriate weighting
+                        existing_trait = merged_profile["big_five"][trait_name]
+                        new_trait = trait_data
+                        
+                        # Simple averaging for scores
+                        if "score" in existing_trait and "score" in new_trait:
+                            merged_profile["big_five"][trait_name]["score"] = (
+                                existing_trait["score"] + new_trait["score"]
+                            ) // 2
+                        
+                        # Update rationale and strategy with new data
+                        if "rationale" in new_trait:
+                            merged_profile["big_five"][trait_name]["rationale"] = new_trait["rationale"]
+                        if "strategy" in new_trait:
+                            merged_profile["big_five"][trait_name]["strategy"] = new_trait["strategy"]
+                    else:
+                        # Add new trait
+                        merged_profile["big_five"][trait_name] = trait_data.copy()
+            
+            # Merge DISC profile
+            if "disc" in new_analysis and new_analysis["disc"]:
+                if "disc" not in merged_profile:
+                    merged_profile["disc"] = {}
+                
+                for trait_name, trait_data in new_analysis["disc"].items():
+                    if trait_name in merged_profile["disc"] and merged_profile["disc"][trait_name]:
+                        # Average the scores with appropriate weighting
+                        existing_trait = merged_profile["disc"][trait_name]
+                        new_trait = trait_data
+                        
+                        # Simple averaging for scores
+                        if "score" in existing_trait and "score" in new_trait:
+                            merged_profile["disc"][trait_name]["score"] = (
+                                existing_trait["score"] + new_trait["score"]
+                            ) // 2
+                        
+                        # Update rationale and strategy with new data
+                        if "rationale" in new_trait:
+                            merged_profile["disc"][trait_name]["rationale"] = new_trait["rationale"]
+                        if "strategy" in new_trait:
+                            merged_profile["disc"][trait_name]["strategy"] = new_trait["strategy"]
+                    else:
+                        # Add new trait
+                        merged_profile["disc"][trait_name] = trait_data.copy()
+            
+            # Merge Schwartz values
+            if "schwartz_values" in new_analysis and new_analysis["schwartz_values"]:
+                if "schwartz_values" not in merged_profile:
+                    merged_profile["schwartz_values"] = []
+                
+                # For simplicity, we'll replace the Schwartz values with the new ones
+                # In a more sophisticated implementation, we might want to merge them
+                merged_profile["schwartz_values"] = new_analysis["schwartz_values"].copy()
+            
+            # Update observations summary if present
+            if "observations_summary" in new_analysis:
+                merged_profile["observations_summary"] = new_analysis["observations_summary"]
+            
+            logger.info("✅ [PROFILE MERGE] Successfully merged psychological profiles")
+            return merged_profile
+            
+        except Exception as e:
+            logger.error(f"❌ [PROFILE MERGE] Error merging psychological profiles: {e}")
+            # Return the existing profile if merging fails
+            return existing_profile
 
     async def answer_clarifying_question(self, session_id: int, question_id: str, answer: str, db: AsyncSession):
         """
@@ -339,7 +431,6 @@ ZWRÓĆ WYNIK WYŁĄCZNIE JAKO JSON Z PEŁNYMI OBIEKTAMI:
       "confidence": 85
     }}
   }}
-}}
 """
 
     def _validate_and_repair_psychology(self, raw_analysis: dict, ai_service) -> dict:

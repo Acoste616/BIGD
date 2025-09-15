@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, TYPE_CHECKING
 import datetime
 
@@ -8,14 +8,20 @@ if TYPE_CHECKING:
 
 class ClientBase(BaseModel):
     notes: Optional[str] = None
-    archetype: Optional[str] = None
+    archetype: Optional[str] = Field(None, max_length=100)
+    tags: Optional[List[str]] = None
 
 class ClientCreate(ClientBase):
     alias: Optional[str] = None
+    
+    model_config = ConfigDict(extra="forbid")
 
 class ClientUpdate(BaseModel):
     notes: Optional[str] = None
-    archetype: Optional[str] = None
+    archetype: Optional[str] = Field(None, max_length=100)
+    tags: Optional[List[str]] = None
+    
+    model_config = ConfigDict(extra="forbid")
 
 class Client(ClientBase):
     id: int

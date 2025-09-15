@@ -51,10 +51,24 @@ const ConversationStream = ({
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [websocket, setWebsocket] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // connecting, connected, disconnected, failed, reconnecting
   
-  // Ref do kontenera z historią do auto-scroll
+  // Ref to store the latest interactions for WebSocket message handling
+  const interactionsRef = useRef(interactions);
+  
+  // Ref to store WebSocket reconnection attempts
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 5;
+  
+  // Ref to kontenera z historią do auto-scroll
   const historyRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update interactionsRef when interactions change
+  useEffect(() => {
+    interactionsRef.current = interactions;
+  }, [interactions]);
 
   // Auto-scroll do najnowszej interakcji
   useEffect(() => {
@@ -63,8 +77,130 @@ const ConversationStream = ({
     }
   }, [interactions]);
 
+  // WebSocket connection management
+  useEffect(() => {
+    if (currentSessionId) {
+      connectWebSocket(currentSessionId);
+    }
+
+    // Cleanup function to close WebSocket connection
+    return () => {
+      if (websocket) {
+        websocket.close();
+      }
+    };
+  }, [currentSessionId]);
+
   // Status inicjalizacji: czy mamy clientId i sessionId gotowe do pracy
   const isSessionReady = currentClientId && currentSessionId;
+
+  const connectWebSocket = (sessionId) => {
+    // Close existing connection if any
+    if (websocket) {
+      websocket.close();
+    }
+
+    setConnectionStatus('connecting');
+    
+    try {
+      // Create WebSocket connection
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws/${sessionId}`;
+      
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected for session:', sessionId);
+        setWebsocket(ws);
+        setConnectionStatus('connected');
+        reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          handleWebSocketMessage(message);
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+        }
+      };
+      
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected for session:', sessionId);
+        setWebsocket(null);
+        setConnectionStatus('disconnected');
+        
+        // Attempt to reconnect if the session is still active and we haven't exceeded max attempts
+        if (currentSessionId && reconnectAttempts.current < maxReconnectAttempts) {
+          setConnectionStatus('reconnecting');
+          reconnectAttempts.current += 1;
+          
+          // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+          const reconnectDelay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 16000);
+          
+          setTimeout(() => {
+            if (currentSessionId) {
+              connectWebSocket(currentSessionId);
+            }
+          }, reconnectDelay);
+        } else if (reconnectAttempts.current >= maxReconnectAttempts) {
+          setConnectionStatus('failed');
+          setError('Connection lost. Please refresh the page to reconnect.');
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnectionStatus('failed');
+        setError('Connection error. Please check your network.');
+      };
+      
+    } catch (e) {
+      console.error('Error creating WebSocket connection:', e);
+      setConnectionStatus('failed');
+      setError('Failed to establish connection.');
+    }
+  };
+
+  const handleWebSocketMessage = (message) => {
+    console.log('Received WebSocket message:', message);
+    
+    if (message.event === 'analysis_complete') {
+      // Handle the complete AI analysis
+      const interactionData = {
+        id: message.data.interaction_id,
+        ai_response_json: message.data.ai_response,
+        timestamp: message.timestamp
+      };
+      
+      // Update the UI with the new interaction
+      onNewInteraction(interactionData);
+      
+      // Update panel with AI response data
+      if (message.data.ai_response) {
+        const aiResponse = message.data.ai_response;
+        
+        // Update archetypes if available
+        if (aiResponse.likely_archetypes) {
+          onArchetypesUpdate(aiResponse.likely_archetypes);
+        }
+        
+        // Update strategic insights
+        if (aiResponse.strategic_notes) {
+          onInsightsUpdate(aiResponse.strategic_notes);
+        }
+      }
+      
+      // Hide loading indicator
+      setIsSubmitting(false);
+    } else if (message.event === 'connected') {
+      console.log('WebSocket connection established:', message.message);
+    } else if (message.event === 'error') {
+      console.error('WebSocket error message:', message.data);
+      setError(`Connection error: ${message.data}`);
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,27 +254,10 @@ const ConversationStream = ({
       };
 
       console.log('📤 Wysyłam interakcję do sesji:', sessionId);
-      const response = await createInteraction(sessionId, interactionData);
+      // Note: We're not waiting for the response here since we'll get it via WebSocket
+      await createInteraction(sessionId, interactionData);
       
-      // Aktualizacja stanu (odśwież dane, aby zobaczyć nową interakcję w UI)
-      onNewInteraction(response);
-      
-      // Aktualizacja panelu strategicznego na podstawie odpowiedzi AI
-      if (response.ai_response_json) {
-        const aiResponse = response.ai_response_json;
-        
-        // Aktualizuj archetypy jeśli są dostępne
-        if (aiResponse.likely_archetypes) {
-          onArchetypesUpdate(aiResponse.likely_archetypes);
-        }
-        
-        // Aktualizuj insights strategiczne
-        if (aiResponse.strategic_notes) {
-          onInsightsUpdate(aiResponse.strategic_notes);
-        }
-      }
-      
-      // Wyczyść formularz
+      // Clear the input but keep the submitting state until we get the WebSocket response
       setInputValue('');
       
       // Fokus z powrotem na input
@@ -159,8 +278,8 @@ const ConversationStream = ({
       } else {
         setError(`Nie udało się przetworzyć Twojej prośby: ${error.message || 'Unknown error'}`);
       }
-    } finally {
-      // Ukryj wskaźnik ładowania
+      
+      // Hide loading indicator on error
       setIsSubmitting(false);
     }
   };
@@ -215,6 +334,20 @@ const ConversationStream = ({
           <Typography variant="body2" color="text.secondary">
             {currentSessionId ? `Session #${currentSessionId}` : 'Ready to start conversation...'}
           </Typography>
+          {connectionStatus !== 'connected' && (
+            <Typography variant="caption" color={
+              connectionStatus === 'connecting' || connectionStatus === 'reconnecting' 
+                ? 'warning.main' 
+                : connectionStatus === 'failed' 
+                  ? 'error.main' 
+                  : 'text.secondary'
+            }>
+              {connectionStatus === 'connecting' && 'Connecting...'}
+              {connectionStatus === 'reconnecting' && `Reconnecting... (${reconnectAttempts.current}/${maxReconnectAttempts})`}
+              {connectionStatus === 'disconnected' && 'Disconnected'}
+              {connectionStatus === 'failed' && 'Connection failed'}
+            </Typography>
+          )}
         </Box>
         
         <Chip 
@@ -224,6 +357,19 @@ const ConversationStream = ({
           color="primary"
         />
       </Box>
+
+      {/* Error Alert */}
+      {error && (
+        <Box sx={{ p: 2, pt: 0 }}>
+          <Alert 
+            severity="error" 
+            onClose={() => setError(null)}
+            sx={{ mb: 0 }}
+          >
+            {error}
+          </Alert>
+        </Box>
+      )}
 
       {/* Historia konwersacji */}
       <Box 
@@ -271,19 +417,6 @@ const ConversationStream = ({
           </Stack>
         )}
       </Box>
-
-      {/* Error Alert */}
-      {error && (
-        <Box sx={{ p: 2, pt: 0 }}>
-          <Alert 
-            severity="error" 
-            onClose={() => setError(null)}
-            sx={{ mb: 0 }}
-          >
-            {error}
-          </Alert>
-        </Box>
-      )}
 
       {/* Formularz wejściowy */}
       <Paper 

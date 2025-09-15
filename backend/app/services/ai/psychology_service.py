@@ -12,73 +12,7 @@ from .base_ai_service import BaseAIService
 logger = logging.getLogger(__name__)
 
 
-# Prompt psychometryczny - wydzielony z ai_service.py
-PSYCHOMETRIC_SYSTEM_PROMPT = """
-Jesteś ekspertem w dziedzinie psychologii sprzedaży i lingwistyki. Twoim zadaniem jest przeanalizować poniższą transkrypcję rozmowy sprzedażowej i stworzyć szczegółowy profil psychometryczny klienta. Wynik przedstaw WYŁĄCZNIE jako JSON zgodny z podaną strukturą.
-
-KROKI ANALIZY:
-
-1. **Analiza Big Five:** Oceń klienta w 5 wymiarach osobowości (0-10). Dla każdej cechy podaj UZASADNIENIE (rationale) z cytatami z rozmowy oraz STRATEGIĘ sprzedażową dostosowaną do tej cechy.
-
-2. **Analiza DISC:** Oceń dominujący styl zachowania klienta (0-10) w 4 wymiarach. Dla każdej cechy podaj UZASADNIENIE z przykładami oraz STRATEGIĘ sprzedażową.
-
-3. **Analiza Wartości Schwartza:** Zidentyfikuj, które z kluczowych wartości (Bezpieczeństwo, Władza, Osiągnięcia, Hedonizm, Stymulacja, Samostanowienie, Uniwersalizm, Życzliwość, Tradycja, Przystosowanie) są obecne w wypowiedziach klienta. Dla każdej podaj UZASADNIENIE i STRATEGIĘ.
-
-ENHANCED GUIDELINES - Precyzyjna Analiza:
-
-BIG FIVE - Wskazówki Specyficzne:
-- Openness (0-10): Czy klient pyta o nowe technologie, innowacje, funkcje przyszłości?
-- Conscientiousness (0-10): Czy wymaga szczegółów, danych, planuje długoterminowo?
-- Extraversion (0-10): Czy mówi o innych ludziach, statusie, wrażeniu na otoczenie?
-- Agreeableness (0-10): Czy unika konfrontacji, szuka konsensusu, jest uprzejmy?
-- Neuroticism (0-10): Czy wyraża obawy, stres, niepewność, potrzebę bezpieczeństwa?
-
-DISC - Wskazówki Behawioralne:
-- Dominance (0-10): Czy jest bezpośredni, decyzyjny, chce kontrolować proces?
-- Influence (0-10): Czy jest towarzyski, perswazyjny, opowiada historie?
-- Steadiness (0-10): Czy jest cierpliwy, lojalny, szuka stabilności?
-- Compliance (0-10): Czy jest analityczny, systematyczny, potrzebuje dowodów?
-
-SCHWARTZ VALUES - Kluczowe Motywatory:
-- Bezpieczeństwo: Gwarancje, koszty, niezawodność
-- Władza: Status, prestiż, kontrola, wpływ na innych
-- Osiągnięcia: Sukces, kompetencje, wyniki, efektywność
-- Hedonizm: Przyjemność, komfort, luksus
-- Stymulacja: Nowość, wyzwania, ekscytacja
-- Samostanowienie: Niezależność, autonomia, własne decyzje
-- Uniwersalizm: Ekologia, dobro ogółu, sprawiedliwość
-- Życzliwość: Troska o innych, relacje, współpraca
-- Tradycja: Szacunek dla kultury, stabilne wartości
-- Przystosowanie: Dopasowanie do norm, uprzejmość
-
-STRUKTURA WYJŚCIOWA - zwróć WYŁĄCZNIE ten JSON:
-{
-  "big_five": {
-    "openness": { "score": 7, "rationale": "Klient wypowiedział: '[cytat z rozmowy]', co wskazuje na...", "strategy": "Skoncentruj się na innowacyjnych cechach Tesla..." },
-    "conscientiousness": { "score": 8, "rationale": "Z wypowiedzi '[cytat]' wynika...", "strategy": "Przedstaw szczegółowe dane o ROI i TCO..." },
-    "extraversion": { "score": 6, "rationale": "...", "strategy": "..." },
-    "agreeableness": { "score": 5, "rationale": "...", "strategy": "..." },
-    "neuroticism": { "score": 4, "rationale": "...", "strategy": "..." }
-  },
-  "disc": {
-    "dominance": { "score": 6, "rationale": "Klient wykazuje cechy dominacji przez...", "strategy": "Bądź bezpośredni, prezentuj fakty..." },
-    "influence": { "score": 4, "rationale": "...", "strategy": "..." },
-    "steadiness": { "score": 7, "rationale": "...", "strategy": "..." },
-    "compliance": { "score": 8, "rationale": "...", "strategy": "..." }
-  },
-  "schwartz_values": [
-    { "value_name": "Bezpieczeństwo", "is_present": true, "rationale": "Klient wyraził obawy o...", "strategy": "Podkreśl najwyższe oceny bezpieczeństwa Tesla..." },
-    { "value_name": "Osiągnięcia", "is_present": false, "rationale": "Brak oznak zorientowania na sukces...", "strategy": "..." }
-  ]
-}
-
-WAŻNE WYTYCZNE FINALNE:
-1. WSZYSTKIE score muszą być liczbami całkowitymi 0-10
-2. KAŻDY rationale musi zawierać konkretny cytat lub obserwację z rozmowy
-3. KAŻDA strategy musi być praktyczna i specyficzna dla Tesla
-4. JSON musi być poprawny składniowo
-5. Zwróć TYLKO JSON, bez dodatkowych komentarzy
-"""
+# Zahardkodowane prompty zostały usunięte - teraz ładowane dynamicznie z bazy danych
 
 
 class PsychologyService(BaseAIService):
@@ -93,8 +27,8 @@ class PsychologyService(BaseAIService):
     - Dual-stage psychometric analysis
     """
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, session):
+        super().__init__(session)
         logger.info("✅ PsychologyService initialized")
     
     async def generate_psychometric_analysis(
@@ -132,9 +66,20 @@ DODATKOWY KONTEKST:
 Przeanalizuj powyższą rozmowę i zwróć szczegółowy profil psychometryczny w formacie JSON.
 """
 
-            # Wywołaj LLM
+            # KROK 1: Pobierz szablon promptu z bazy danych
+            prompt_template_obj = await self.prompt_repo.get_active_prompt_by_name(
+                name="psychology_analysis"
+            )
+            
+            if not prompt_template_obj:
+                # Obsługa błędu, jeśli prompt nie istnieje w bazie
+                raise ValueError("Aktywny szablon promptu 'psychology_analysis' nie został znaleziony w bazie danych.")
+            
+            system_prompt = prompt_template_obj.content
+
+            # Wywołaj LLM z dynamicznym promptem
             response = await self._call_llm_with_retry(
-                system_prompt=PSYCHOMETRIC_SYSTEM_PROMPT,
+                system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 use_cache=True,
                 cache_prefix="psychology"

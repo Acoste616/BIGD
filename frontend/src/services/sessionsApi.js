@@ -5,6 +5,21 @@
 import apiClient from './api';
 
 /**
+ * Pobiera wszystkie sesje dla dashboardu
+ * @param {number} skip - Liczba sesji do pominięcia
+ * @param {number} limit - Maksymalna liczba sesji
+ * @returns {Promise<Array>} Lista wszystkich sesji
+ */
+export const getAllSessions = async (skip = 0, limit = 100) => {
+  const params = new URLSearchParams({
+    skip: skip.toString(),
+    limit: limit.toString()
+  });
+  
+  return await apiClient.get(`/sessions/?${params}`);
+};
+
+/**
  * Pobiera wszystkie sesje dla konkretnego klienta
  * @param {number} clientId - ID klienta
  * @param {number} page - Numer strony (domyślnie 1)
@@ -76,7 +91,20 @@ export const updateSession = async (sessionId, updateData) => {
 };
 
 /**
- * Kończy sesję (ustawia end_time)
+ * Finalizuje sesję (ustawia status na 'closed' i zapisuje dane wyniku)
+ * @param {number} sessionId - ID sesji
+ * @param {Object} conclusionData - Dane finalizacji (outcome, notes, summary)
+ * @returns {Promise<Object>} Zakończona sesja
+ */
+export const concludeSession = async (sessionId, conclusionData) => {
+  if (!sessionId) {
+    throw new Error('Session ID is required');
+  }
+  return await apiClient.post(`/sessions/${sessionId}/conclude`, conclusionData);
+};
+
+/**
+ * Kończy sesję (ustawia end_time) - przestarzałe, użyj concludeSession
  * @param {number} sessionId - ID sesji
  * @param {Object} endData - Dane końcowe (summary, outcome, itp.)
  * @returns {Promise<Object>} Zakończona sesja
@@ -145,15 +173,15 @@ export const getClientEngagement = async (clientId) => {
 export const formatSessionData = (session) => {
   return {
     ...session,
-    displayStartTime: new Date(session.start_time).toLocaleDateString('pl-PL', {
+    displayStartTime: new Date(session.start_timestamp).toLocaleDateString('pl-PL', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     }),
-    displayEndTime: session.end_time 
-      ? new Date(session.end_time).toLocaleDateString('pl-PL', {
+    displayEndTime: session.end_timestamp 
+      ? new Date(session.end_timestamp).toLocaleDateString('pl-PL', {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
@@ -161,12 +189,12 @@ export const formatSessionData = (session) => {
           minute: '2-digit'
         })
       : null,
-    isActive: !session.end_time,
-    status: !session.end_time ? 'Aktywna' : 'Zakończona',
-    duration: session.end_time 
-      ? Math.round((new Date(session.end_time) - new Date(session.start_time)) / (1000 * 60)) + ' min'
+    isActive: session.status === 'active',
+    status: session.status === 'active' ? 'Aktywna' : 'Zakończona',
+    duration: session.end_timestamp 
+      ? Math.round((new Date(session.end_timestamp) - new Date(session.start_timestamp)) / (1000 * 60)) + ' min'
       : 'W trakcie',
-    displayOutcome: session.outcome || 'Brak',
+    displayOutcome: session.outcome_data?.outcome || 'Brak',
     displayType: session.session_type || 'Konsultacja',
     sentimentLabel: getSentimentLabel(session.sentiment_score),
     potentialLabel: getPotentialLabel(session.potential_score)
