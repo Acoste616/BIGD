@@ -9,7 +9,7 @@ from .client import (
     ClientUpdate,
     Client,
     ClientWithSessions,
-    ClientSummary
+    ClientSummary,
 )
 
 # Session schemas
@@ -24,7 +24,7 @@ from .session import (
     SessionWithInteractions,
     SessionDemo,
     SessionSummary,
-    SessionAnalytics
+    SessionAnalytics,
 )
 
 # Interaction schemas
@@ -36,14 +36,18 @@ from .interaction import (
     InteractionWithFeedback,
     InteractionWithContext,
     InteractionResponse,
-    InteractionRequest
+    InteractionRequest,
 )
 
 # Feedback schemas
 from .feedback import (
     FeedbackCreate,
 )
-
+from .stream import (
+    DojoMessageCreate,
+    SessionStreamRequest,
+    StreamMessage,
+)
 
 
 __all__ = [
@@ -54,11 +58,10 @@ __all__ = [
     "Client",
     "ClientWithSessions",
     "ClientSummary",
-    
     # Session
     "SessionBase",
     "SessionCreate",
-    "SessionCreateNested", 
+    "SessionCreateNested",
     "SessionUpdate",
     "SessionEnd",
     "Session",
@@ -67,7 +70,6 @@ __all__ = [
     "SessionDemo",
     "SessionSummary",
     "SessionAnalytics",
-    
     # Interaction
     "InteractionBase",
     "InteractionCreate",
@@ -77,7 +79,10 @@ __all__ = [
     "InteractionWithContext",
     "InteractionResponse",
     "InteractionRequest",
-    
     # Feedback
     "FeedbackCreate",
+    # Stream
+    "DojoMessageCreate",
+    "SessionStreamRequest",
+    "StreamMessage",
 ]
