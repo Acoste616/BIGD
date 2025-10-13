@@ -394,7 +394,7 @@ class InteractionService:
         return {
             'interaction_service_status': 'active',
             'ai_services_health': ai_health,
-            'psychology_engine_available': session_psychology_engine is not None,
+            'psychology_engine_available': session_orchestrator_service is not None,
             'repository_available': self.interaction_repo is not None,
             'timestamp': datetime.now().isoformat()
         }

@@ -20,9 +20,11 @@ try:
     )
     
     print("\n🧪 Testowanie połączenia...")
-    
+
+    model = os.getenv('OLLAMA_MODEL') or 'gpt-oss:120b'
+
     response = client.chat(
-        model='gpt-oss:120b',
+        model=model,
         messages=[
             {'role': 'system', 'content': 'Odpowiedz krótko po polsku w formacie JSON: {"odpowiedz": "twoja odpowiedz"}'},
             {'role': 'user', 'content': 'Test połączenia'}
@@ -30,6 +32,7 @@ try:
     )
     
     print("✅ OLLAMA TURBO DZIAŁA!")
+    print(f"Model: {model}")
     print(f"Raw Response: {response}")
     print(f"Message: {response.get('message', {}).get('content', 'BRAK')}")
     

@@ -21,6 +21,7 @@ from app.core.database import (
 # Inicjalizacja serwisów AI
 from app.services.qdrant_service import qdrant_service
 from app.services.ai.ai_service_factory import initialize_ai_services
+from app.services.ai import check_ai_services_health
 from app.services.ai_service import initialize_ai_service
 
 # Konfiguracja logowania
@@ -147,12 +148,22 @@ async def health_check() -> Dict[str, Any]:
     }
     
     # Szczegółowy status komponentów
+    # Qdrant status
+    try:
+        qdrant_status = qdrant_service.health_check()
+    except Exception as e:
+        qdrant_status = {"status": "unhealthy", "error": str(e)}
+
+    # AI services health (Ollama + internal services)
+    try:
+        ai_status = check_ai_services_health()
+    except Exception as e:
+        ai_status = {"overall_status": "unhealthy", "error": str(e)}
+
     components = {
         "database": db_health,
-        "qdrant": {
-            "status": "not_implemented",
-            "details": {"message": "Qdrant health check będzie dodany"}
-        }
+        "qdrant": qdrant_status,
+        "ai_services": ai_status,
     }
     
     return {
