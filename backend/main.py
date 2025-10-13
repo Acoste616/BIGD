@@ -176,6 +176,41 @@ async def database_health_check(db: AsyncSession = Depends(get_db)) -> Dict[str,
     return await get_database_health()
 
 
+@app.get("/health/ollama")
+async def ollama_health_check() -> Dict[str, Any]:
+    """
+    Szczegółowy health check Ollama Turbo API.
+    
+    Testuje połączenie z Ollama Cloud API i zwraca status.
+    
+    Returns:
+        Dict z informacjami o stanie połączenia z Ollama API
+    """
+    try:
+        from app.services.ai.base_ai_service import BaseAIService
+        
+        # Utwórz tymczasową instancję do testowania
+        test_service = BaseAIService()
+        health_status = await test_service.health_check()
+        await test_service.close()
+        
+        return {
+            "service": "ollama_turbo_api",
+            "status": health_status.get('status', 'unknown'),
+            "details": health_status,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Ollama health check failed: {e}")
+        return {
+            "service": "ollama_turbo_api",
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
 
 # Import i rejestracja routerów
 from app.routers import clients, sessions, interactions, feedback, knowledge, dojo

@@ -1,6 +1,11 @@
 """
-BaseAIService - Podstawowa komunikacja z Ollama LLM
+BaseAIService - Podstawowa komunikacja z Ollama Turbo API
 Odpowiedzialny za: konfigurację, retry logic, cache management
+
+UPDATED: 2025-10-13 - Przepisany dla Ollama Turbo Cloud API
+- Używa httpx zamiast ollama-python dla kompatybilności z Cloud API
+- Implementuje OpenAI-compatible endpoint format
+- Dodano proper Bearer token authentication
 """
 import json
 import asyncio
@@ -9,7 +14,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
 
-import ollama
+import httpx
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,28 +22,39 @@ logger = logging.getLogger(__name__)
 
 class BaseAIService:
     """
-    Bazowa klasa dla komunikacji z Ollama LLM.
+    Bazowa klasa dla komunikacji z Ollama Turbo Cloud API.
     
     Funkcjonalności:
-    - Konfiguracja i inicjalizacja klienta Ollama
+    - Konfiguracja i inicjalizacja HTTPS client dla Ollama Turbo
     - Retry logic z exponential backoff
     - Cache management dla performance optimization
     - Error handling i logging
+    - OpenAI-compatible API format
     """
     
     def __init__(self):
         """Inicjalizacja bazowego serwisu AI"""
-        # Konfiguracja Ollama Cloud
-        headers = {}
-        if settings.OLLAMA_API_KEY:
-            headers['Authorization'] = f'Bearer {settings.OLLAMA_API_KEY}'
+        # Validate configuration
+        if not settings.OLLAMA_API_KEY or settings.OLLAMA_API_KEY == "YOUR_OLLAMA_API_KEY_HERE":
+            logger.warning("⚠️ OLLAMA_API_KEY not configured! Set it in .env file")
+            logger.warning("⚠️ System will operate in FALLBACK mode without AI analysis")
         
-        self.client = ollama.Client(
-            host=settings.OLLAMA_API_URL,
-            headers=headers
+        # Konfiguracja HTTPS Client dla Ollama Turbo Cloud API
+        self.api_url = settings.OLLAMA_API_URL.rstrip('/')
+        self.api_key = settings.OLLAMA_API_KEY
+        self.model_name = settings.OLLAMA_MODEL
+        
+        # HTTP Client configuration
+        self.client = httpx.AsyncClient(
+            base_url=self.api_url,
+            headers={
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            },
+            timeout=60.0,
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
         )
         
-        self.model_name = settings.OLLAMA_MODEL
         self.max_retries = 3
         self.timeout_seconds = 60
         
@@ -47,7 +63,7 @@ class BaseAIService:
         self._cache_max_size = 128
         self._cache_ttl_seconds = 3600  # 1 godzina
         
-        logger.info(f"✅ BaseAIService initialized - Model: {self.model_name}, Host: {settings.OLLAMA_API_URL}")
+        logger.info(f"✅ BaseAIService initialized - Model: {self.model_name}, API: {self.api_url}")
     
     def _generate_cache_key(self, data: Dict[str, Any], prefix: str = "") -> str:
         """
@@ -202,16 +218,22 @@ class BaseAIService:
     
     async def _make_ollama_request(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
         """
-        Wykonuje faktyczne wywołanie Ollama API
+        Wykonuje faktyczne wywołanie Ollama Turbo Cloud API
+        
+        Uses OpenAI-compatible endpoint: /v1/chat/completions
         
         Args:
             system_prompt: System prompt
             user_prompt: User prompt
             
         Returns:
-            Dict[str, Any]: Raw response z Ollama
+            Dict[str, Any]: Parsed response from Ollama Turbo
+            
+        Raises:
+            httpx.HTTPStatusError: For HTTP errors (401, 429, 500, etc.)
+            httpx.TimeoutException: For timeout errors
         """
-        # Przygotuj messages dla Ollama
+        # Przygotuj messages w formacie OpenAI
         messages = []
         
         if system_prompt.strip():
@@ -225,20 +247,72 @@ class BaseAIService:
             'content': user_prompt.strip()
         })
         
-        # Wywołaj Ollama
-        response = await asyncio.to_thread(
-            self.client.chat,
-            model=self.model_name,
-            messages=messages
-        )
-        
-        # Zwróć content z response
-        return {
-            'content': response.get('message', {}).get('content', ''),
+        # Przygotuj request body (OpenAI-compatible format)
+        request_body = {
             'model': self.model_name,
-            'timestamp': datetime.now().isoformat(),
-            'raw_response': response
+            'messages': messages,
+            'temperature': 0.7,
+            'max_tokens': settings.MAX_TOKENS_PER_REQUEST,
+            'top_p': 1.0,
+            'frequency_penalty': 0.0,
+            'presence_penalty': 0.0
         }
+        
+        try:
+            # Wywołaj Ollama Turbo API (OpenAI-compatible endpoint)
+            response = await self.client.post(
+                '/v1/chat/completions',
+                json=request_body
+            )
+            
+            # Sprawdź status code
+            response.raise_for_status()
+            
+            # Parsuj odpowiedź
+            response_data = response.json()
+            
+            # Extract content from OpenAI-compatible format
+            content = ''
+            if 'choices' in response_data and len(response_data['choices']) > 0:
+                content = response_data['choices'][0].get('message', {}).get('content', '')
+            
+            # Zwróć zparsowaną odpowiedź
+            return {
+                'content': content,
+                'model': response_data.get('model', self.model_name),
+                'timestamp': datetime.now().isoformat(),
+                'usage': response_data.get('usage', {}),
+                'raw_response': response_data
+            }
+            
+        except httpx.HTTPStatusError as e:
+            # Handle specific HTTP errors
+            status_code = e.response.status_code
+            
+            if status_code == 401:
+                logger.error("❌ Ollama API Authentication Error - Check OLLAMA_API_KEY")
+                raise Exception("Invalid Ollama API key. Please check your .env configuration.")
+            elif status_code == 429:
+                logger.error("❌ Ollama API Rate Limit Exceeded")
+                raise Exception("Ollama API rate limit exceeded. Please try again later.")
+            elif status_code >= 500:
+                logger.error(f"❌ Ollama API Server Error: {status_code}")
+                raise Exception(f"Ollama API server error: {status_code}")
+            else:
+                logger.error(f"❌ Ollama API HTTP Error: {status_code} - {e.response.text}")
+                raise Exception(f"Ollama API error: {status_code}")
+                
+        except httpx.TimeoutException as e:
+            logger.error("❌ Ollama API Timeout")
+            raise Exception("Ollama API request timed out")
+        
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Ollama API Invalid JSON Response: {e}")
+            raise Exception("Invalid response from Ollama API")
+        
+        except Exception as e:
+            logger.error(f"❌ Ollama API Unexpected Error: {e}")
+            raise
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """
@@ -263,3 +337,70 @@ class BaseAIService:
         old_size = len(self._cache)
         self._cache.clear()
         logger.info(f"🧹 Cache cleared - Removed {old_size} entries")
+    
+    async def close(self) -> None:
+        """
+        Zamyka HTTP client i zwalnia zasoby
+        
+        WAŻNE: Wywołać przy zamykaniu aplikacji
+        """
+        try:
+            await self.client.aclose()
+            logger.info("✅ BaseAIService HTTP client closed")
+        except Exception as e:
+            logger.error(f"❌ Error closing HTTP client: {e}")
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Sprawdza połączenie z Ollama Turbo API
+        
+        Returns:
+            Dict: Status połączenia z API
+        """
+        try:
+            # Prosty test call do Ollama API
+            test_messages = [
+                {'role': 'user', 'content': 'test'}
+            ]
+            
+            response = await self.client.post(
+                '/v1/chat/completions',
+                json={
+                    'model': self.model_name,
+                    'messages': test_messages,
+                    'max_tokens': 5
+                },
+                timeout=10.0
+            )
+            
+            response.raise_for_status()
+            
+            return {
+                'status': 'healthy',
+                'api_url': self.api_url,
+                'model': self.model_name,
+                'authenticated': True,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            return {
+                'status': 'unhealthy',
+                'api_url': self.api_url,
+                'model': self.model_name,
+                'authenticated': status_code != 401,
+                'error': f'HTTP {status_code}',
+                'error_detail': e.response.text[:200] if hasattr(e.response, 'text') else str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'unhealthy',
+                'api_url': self.api_url,
+                'model': self.model_name,
+                'authenticated': False,
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
